@@ -570,7 +570,7 @@ encodeBtn.addEventListener('click', () => {
                 shareChunkBtn.className = 'btn secondary';
                 shareChunkBtn.textContent = `Share Part ${idx + 1}`;
                 shareChunkBtn.addEventListener('click', async () => {
-                    const data = { title: ``, url: chunkUrl };
+                    const data = { url: chunkUrl };
                     if (navigator.share) {
                         try { await navigator.share(data); } catch (e) { console.log(e); }
                     } else {
@@ -616,10 +616,7 @@ shareBtn.addEventListener('click', async () => {
         ? urlBox.querySelector('div div')?.textContent || urlBox.textContent
         : urlBox.textContent;
 
-    const shareData = {
-        title: 'NanoGlyph Image',
-        url: firstUrl
-    };
+    const shareData = { url: firstUrl };
 
     if (navigator.share) {
         try {
