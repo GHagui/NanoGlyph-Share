@@ -32,15 +32,17 @@ The entire image lives in the link. Send it via WhatsApp, Telegram, SMS, email �
 
 | Feature | Description |
 |---------|-------------|
-| 🎨 **99 Color Palettes** | 20 hand-crafted + 79 procedural palettes with real-time preview |
+| 🎨 **99 Color Palettes** | 20 hand-crafted + 79 procedural palettes with Auto/Manual toggle |
+| 🎛️ **Instant Adjustments** | Saturation, Hue, Exposure, Contrast, and Temperature calculated instantly in WebAssembly |
+| 🚀 **Aggressive PWA** | Custom Service Worker bypasses "stuck cache" bugs standard to mobile PWAs for guaranteed updates |
 | 📱 **Platform-Aware Chunking** | Auto-splits URLs for WhatsApp (4K), Telegram (4K), Messenger (2K), Instagram (1K) |
 | 🖼️ **Multi-Format Support** | PNG, JPEG, GIF, WebP, BMP, HEIF/HEIC — including animations |
 | 💾 **Save as PNG** | Download received images directly to your gallery with one tap |
 | 🔒 **Zero Server** | Everything runs in your browser via WebAssembly — no data leaves your device |
-| 📶 **Offline-First** | Service Worker caches everything — works without internet after first visit |
+| 📶 **Offline-First** | Works without internet after first visit — self-contained ImageSession Wasm layer |
 | ⚡ **Rust + WebAssembly** | Image processing at near-native speed using Bayer dithering and RLE |
 | 🗜️ **Dual Compression** | Choose between Brotli (maximum compression) or Zlib (compatibility) |
-| 🎚️ **Quality Control** | Tiny (32px) to Maximum (512px) — you choose the tradeoff |
+| 🎚️ **Quality Control** | Low (64px) to Cosmic (2048px) — you choose the tradeoff |
 
 ---
 
@@ -50,9 +52,9 @@ The entire image lives in the link. Send it via WhatsApp, Telegram, SMS, email �
 
 ```mermaid
 flowchart LR
-    A["🖼️ Image\n(Upload)"] --> B["📐 Resize\n32–512px"]
-    B --> C["🎨 Palette\nSelection\n8 colors"]
-    C --> D["✦ Bayer\nDithering"]
+    A["🖼️ Image\n(Upload)"] --> B["📐 Resize & Cache\n(ImageSession)"]
+    B --> C["🎛️ Pixel Adjustments\n(Hue, Saturation...)"]
+    C --> D["🎨 Auto-Palette & \nBayer Dithering"]
     D --> E["📦 Pack\n3-bit/px"]
     E --> F["🗜️ RLE\nEncode"]
     F --> G["💨 Brotli/Zlib\nCompress"]
@@ -75,13 +77,14 @@ flowchart LR
 
 **Step by step:**
 
-1. **Resize** — Scale to target dimension (32–512px) preserving aspect ratio
-2. **Palette** — Auto-detect or manually select one of 99 palettes (8 colors each)
-3. **Dither** — Bayer ordered dithering for smooth color transitions
-4. **Pack** — 3 bits per pixel (8 colors = 3 bits, 62% size reduction vs 8-bit)
-5. **RLE** — Run-length encoding for repeated color runs
-6. **Compress** — Brotli (Q11) or Zlib (L9) for maximum entropy compression
-7. **Base62** — URL-safe encoding using `A-Za-z0-9` only
+1. **Resize** — Scale to target dimension (64–2048px) and cache in WebAssembly RAM
+2. **Adjust** — Apply Exposure, Contrast, Saturation, Hue, and Temperature mathematically
+3. **Palette** — Auto-detect or manually lock one of 99 palettes (8 colors each)
+4. **Dither** — Bayer ordered dithering for smooth color transitions
+5. **Pack** — 3 bits per pixel (8 colors = 3 bits, 62% size reduction vs 8-bit)
+6. **RLE** — Run-length encoding for repeated color runs
+7. **Compress** — Brotli (Q11) or Zlib (L9) for maximum entropy compression
+8. **Base62** — URL-safe encoding using `A-Za-z0-9` only
 
 The result is a self-contained URL like:
 ```
