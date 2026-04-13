@@ -79,6 +79,78 @@
                     </div>
                 </div>
 
+                <div id="adjustments-container" class="hidden">
+                    <div class="expandable-section" id="adjustments-section">
+                        <button type="button" class="expandable-header" id="adjustments-toggle" aria-expanded="false">
+                            <span class="expandable-title">
+                                Image Adjustments
+                            </span>
+                            <span class="expandable-badge" id="adjustments-badge">Default</span>
+                            <span class="expandable-chevron">▶</span>
+                        </button>
+                        <div class="expandable-body" id="adjustments-body" aria-hidden="true">
+                            <!-- Exposure -->
+                            <div class="adj-row">
+                                <div class="adj-label-row">
+                                    <label class="adj-label" for="adj-exposure">Exposure</label>
+                                    <span class="adj-value" id="adj-exposure-val">0</span>
+                                    <button type="button" class="adj-reset" data-target="adj-exposure"
+                                        title="Reset">↺</button>
+                                </div>
+                                <input type="range" id="adj-exposure" class="adj-slider" min="-100" max="100" value="0"
+                                    step="1">
+                            </div>
+                            <!-- Contrast -->
+                            <div class="adj-row">
+                                <div class="adj-label-row">
+                                    <label class="adj-label" for="adj-contrast">Contrast</label>
+                                    <span class="adj-value" id="adj-contrast-val">0</span>
+                                    <button type="button" class="adj-reset" data-target="adj-contrast"
+                                        title="Reset">↺</button>
+                                </div>
+                                <input type="range" id="adj-contrast" class="adj-slider" min="-100" max="100" value="0"
+                                    step="1">
+                            </div>
+                            <!-- Saturation -->
+                            <div class="adj-row">
+                                <div class="adj-label-row">
+                                    <label class="adj-label" for="adj-saturation">Saturation</label>
+                                    <span class="adj-value" id="adj-saturation-val">0</span>
+                                    <button type="button" class="adj-reset" data-target="adj-saturation"
+                                        title="Reset">↺</button>
+                                </div>
+                                <input type="range" id="adj-saturation" class="adj-slider" min="-100" max="100"
+                                    value="0" step="1">
+                            </div>
+                            <!-- Hue / Matrix -->
+                            <div class="adj-row">
+                                <div class="adj-label-row">
+                                    <label class="adj-label" for="adj-hue">Hue Rotate</label>
+                                    <span class="adj-value" id="adj-hue-val">0°</span>
+                                    <button type="button" class="adj-reset" data-target="adj-hue"
+                                        title="Reset">↺</button>
+                                </div>
+                                <input type="range" id="adj-hue" class="adj-slider" min="-180" max="180" value="0"
+                                    step="1">
+                            </div>
+                            <!-- Temperature -->
+                            <div class="adj-row">
+                                <div class="adj-label-row">
+                                    <label class="adj-label" for="adj-temperature">Temperature</label>
+                                    <span class="adj-value" id="adj-temperature-val">0</span>
+                                    <button type="button" class="adj-reset" data-target="adj-temperature"
+                                        title="Reset">↺</button>
+                                </div>
+                                <input type="range" id="adj-temperature" class="adj-slider" min="-100" max="100"
+                                    value="0" step="1">
+                            </div>
+                            <!-- Reset All -->
+                            <button type="button" class="btn outline adj-reset-all" id="adj-reset-all">↺ Reset All
+                                Adjustments</button>
+                        </div>
+                    </div>
+                </div>
+
                 <div id="compression-container" class="hidden">
                     <label for="compression-select">Compression Algorithm:</label>
                     <select id="compression-select">

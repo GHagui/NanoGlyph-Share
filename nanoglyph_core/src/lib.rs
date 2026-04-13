@@ -3,16 +3,32 @@ pub mod palette;
 pub mod encoder;
 pub mod decoder;
 
+use encoder::ImageAdj;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub fn encode_image_to_base62(img_data: &[u8], max_dimension: u32, use_brotli: bool) -> Result<String, JsValue> {
-    encoder::encode_image(img_data, max_dimension, None, use_brotli).map_err(|e| JsValue::from_str(&e))
+pub fn encode_image_to_base62(
+    img_data: &[u8],
+    max_dimension: u32,
+    use_brotli: bool,
+    exposure: f32, contrast: f32, saturation: f32, hue: f32, temperature: f32,
+) -> Result<String, JsValue> {
+    let adj = ImageAdj { exposure, contrast, saturation, hue, temperature };
+    encoder::encode_image(img_data, max_dimension, None, use_brotli, &adj)
+        .map_err(|e| JsValue::from_str(&e))
 }
 
 #[wasm_bindgen]
-pub fn encode_image_to_base62_with_palette(img_data: &[u8], max_dimension: u32, palette_id: u8, use_brotli: bool) -> Result<String, JsValue> {
-    encoder::encode_image(img_data, max_dimension, Some(palette_id), use_brotli).map_err(|e| JsValue::from_str(&e))
+pub fn encode_image_to_base62_with_palette(
+    img_data: &[u8],
+    max_dimension: u32,
+    palette_id: u8,
+    use_brotli: bool,
+    exposure: f32, contrast: f32, saturation: f32, hue: f32, temperature: f32,
+) -> Result<String, JsValue> {
+    let adj = ImageAdj { exposure, contrast, saturation, hue, temperature };
+    encoder::encode_image(img_data, max_dimension, Some(palette_id), use_brotli, &adj)
+        .map_err(|e| JsValue::from_str(&e))
 }
 
 /// Returns a flat array of 24 bytes (8 colors × 3 RGB bytes) for the given palette ID (0-98)
@@ -44,8 +60,14 @@ impl PreviewImage {
 
 /// Fast preview: resize + dither with a specific palette, returns RGBA for canvas rendering
 #[wasm_bindgen]
-pub fn preview_image_with_palette(img_data: &[u8], max_dimension: u32, palette_id: u8) -> Result<PreviewImage, JsValue> {
-    encoder::preview_with_palette(img_data, max_dimension, palette_id)
+pub fn preview_image_with_palette(
+    img_data: &[u8],
+    max_dimension: u32,
+    palette_id: u8,
+    exposure: f32, contrast: f32, saturation: f32, hue: f32, temperature: f32,
+) -> Result<PreviewImage, JsValue> {
+    let adj = ImageAdj { exposure, contrast, saturation, hue, temperature };
+    encoder::preview_with_palette(img_data, max_dimension, palette_id, &adj)
         .map(|(width, height, rgba)| PreviewImage { width, height, rgba })
         .map_err(|e| JsValue::from_str(&e))
 }

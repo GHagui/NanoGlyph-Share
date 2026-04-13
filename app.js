@@ -72,6 +72,15 @@ const settingsContainer = document.getElementById('settings-container');
 const qualitySelect = document.getElementById('quality-select');
 const compressionContainer = document.getElementById('compression-container');
 const compressionSelect = document.getElementById('compression-select');
+const adjustmentsContainer = document.getElementById('adjustments-container');
+const adjustmentsToggle = document.getElementById('adjustments-toggle');
+const adjustmentsBody = document.getElementById('adjustments-body');
+const adjustmentsBadge = document.getElementById('adjustments-badge');
+const adjExposure = document.getElementById('adj-exposure');
+const adjContrast = document.getElementById('adj-contrast');
+const adjSaturation = document.getElementById('adj-saturation');
+const adjHue = document.getElementById('adj-hue');
+const adjTemperature = document.getElementById('adj-temperature');
 const resultContainer = document.getElementById('result-container');
 const urlBox = document.getElementById('url-box');
 const shareBtn = document.getElementById('share-btn');
@@ -95,6 +104,109 @@ let selectedPlatformLimit = 4096; // default: WhatsApp
 let currentPaletteId = -1; // -1 = auto-detect
 let paletteAutoMode = true;
 
+// ── Image Adjustments ──────────────────────────────────────────────────────
+const ADJ_DEFAULTS = { exposure: 0, contrast: 0, saturation: 0, hue: 0, temperature: 0 };
+
+// Returns current slider values
+function getAdjustments() {
+    return {
+        exposure: parseInt(adjExposure.value, 10),
+        contrast: parseInt(adjContrast.value, 10),
+        saturation: parseInt(adjSaturation.value, 10),
+        hue: parseInt(adjHue.value, 10),
+        temperature: parseInt(adjTemperature.value, 10),
+    };
+}
+
+// Returns true if any slider differs from default
+function hasAdjustments(adj) {
+    return Object.keys(ADJ_DEFAULTS).some(k => adj[k] !== ADJ_DEFAULTS[k]);
+}
+
+// Update the track gradient fill % for a slider
+function updateSliderTrack(slider) {
+    const min = parseFloat(slider.min);
+    const max = parseFloat(slider.max);
+    const val = parseFloat(slider.value);
+    const pct = ((val - min) / (max - min)) * 100;
+    slider.style.setProperty('--pct', `${pct}%`);
+}
+
+// Sync display values + tracks + badge
+function syncAdjustmentUI() {
+    const adj = getAdjustments();
+    document.getElementById('adj-exposure-val').textContent = adj.exposure > 0 ? `+${adj.exposure}` : adj.exposure;
+    document.getElementById('adj-contrast-val').textContent = adj.contrast > 0 ? `+${adj.contrast}` : adj.contrast;
+    document.getElementById('adj-saturation-val').textContent = adj.saturation > 0 ? `+${adj.saturation}` : adj.saturation;
+    document.getElementById('adj-hue-val').textContent = `${adj.hue}°`;
+    document.getElementById('adj-temperature-val').textContent = adj.temperature > 0 ? `+${adj.temperature}` : adj.temperature;
+
+    [adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(updateSliderTrack);
+
+    const active = hasAdjustments(adj);
+    adjustmentsBadge.textContent = active ? 'Modified' : 'Default';
+    adjustmentsBadge.classList.toggle('active', active);
+}
+
+// Returns the 5 adjustment values ready to pass to Wasm (UI range -100..100 → Rust -1..1, hue as-is)
+function getAdjFloats() {
+    const adj = getAdjustments();
+    return [
+        adj.exposure / 100,  // EV stops normalised
+        adj.contrast / 100,
+        adj.saturation / 100,
+        adj.hue,                // degrees, Rust accepts -180..180
+        adj.temperature / 100,
+    ];
+}
+
+// Expand / collapse
+adjustmentsToggle.addEventListener('click', () => {
+    const expanded = adjustmentsToggle.getAttribute('aria-expanded') === 'true';
+    adjustmentsToggle.setAttribute('aria-expanded', String(!expanded));
+    adjustmentsBody.setAttribute('aria-hidden', String(expanded));
+    adjustmentsBody.classList.toggle('open', !expanded);
+});
+
+// Individual slider live update
+let adjDebounceTimer = null;
+
+function debouncedPreviewUpdate() {
+    if (adjDebounceTimer) clearTimeout(adjDebounceTimer);
+    adjDebounceTimer = setTimeout(() => {
+        if (selectedFileBuffer && wasmInitialized) {
+            const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+            renderPalettePreview(effectiveId);
+        }
+    }, 125);
+}
+
+[adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(slider => {
+    slider.addEventListener('input', () => {
+        syncAdjustmentUI(); // Update UI instantly
+        debouncedPreviewUpdate(); // Delay expensive Wasm computation
+    });
+});
+
+// Per-slider reset buttons
+document.querySelectorAll('.adj-reset').forEach(btn => {
+    btn.addEventListener('click', () => {
+        const target = document.getElementById(btn.dataset.target);
+        if (target) {
+            target.value = 0;
+            syncAdjustmentUI();
+            debouncedPreviewUpdate();
+        }
+    });
+});
+
+// Reset all
+document.getElementById('adj-reset-all').addEventListener('click', () => {
+    [adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(s => s.value = 0);
+    syncAdjustmentUI();
+    debouncedPreviewUpdate();
+});
+
 // Platform selection logic
 platformGrid.addEventListener('click', (e) => {
     const btn = e.target.closest('.platform-btn');
@@ -117,11 +229,13 @@ function renderPaletteSwatches(id) {
 }
 
 // Real-time palette preview on the image
+// Adjustments are passed as floats directly to Wasm — no JS canvas roundtrip
 function renderPalettePreview(paletteId) {
     if (!selectedFileBuffer || !wasmInitialized) return;
     try {
         const maxDim = parseInt(qualitySelect.value, 10);
-        const preview = preview_image_with_palette(selectedFileBuffer, maxDim, paletteId);
+        const [exp, con, sat, hue, tmp] = getAdjFloats();
+        const preview = preview_image_with_palette(selectedFileBuffer, maxDim, paletteId, exp, con, sat, hue, tmp);
         const rgba = preview.get_rgba();
         const w = preview.width;
         const h = preview.height;
@@ -456,10 +570,12 @@ function handleFile(file) {
         previewContainer.classList.remove('hidden');
         settingsContainer.classList.remove('hidden');
         compressionContainer.classList.remove('hidden');
+        adjustmentsContainer.classList.remove('hidden');
         platformContainer.classList.remove('hidden');
         paletteContainer.classList.remove('hidden');
         dropZone.classList.add('hidden');
         savePreviewBtn.classList.remove('hidden');
+        syncAdjustmentUI();
         encodeBtn.disabled = !wasmInitialized;
         if (wasmInitialized) {
             updatePaletteUI();
@@ -510,9 +626,13 @@ encodeBtn.addEventListener('click', () => {
         const maxDimension = parseInt(qualitySelect.value, 10);
         const useBrotli = compressionSelect.value === 'brotli';
 
+        // Get adjustment values (floats)
+        const [exp, con, sat, hue, tmp] = getAdjFloats();
+
+        // Encode directly with Wasm, passing the adjustment values
         const base62Str = paletteAutoMode
-            ? encode_image_to_base62(selectedFileBuffer, maxDimension, useBrotli)
-            : encode_image_to_base62_with_palette(selectedFileBuffer, maxDimension, currentPaletteId, useBrotli);
+            ? encode_image_to_base62(selectedFileBuffer, maxDimension, useBrotli, exp, con, sat, hue, tmp)
+            : encode_image_to_base62_with_palette(selectedFileBuffer, maxDimension, currentPaletteId, useBrotli, exp, con, sat, hue, tmp);
 
         const baseUrl = window.location.origin + window.location.pathname;
         const platformLimit = Math.min(getChunkLimit(), BROWSER_URL_MAX);
