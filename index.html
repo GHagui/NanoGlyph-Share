@@ -7,17 +7,17 @@
     <title>NanoGlyph — Offline Image Sharing via URL</title>
     <meta name="description"
         content="NanoGlyph is an offline-first PWA that encodes images into compact, URL-safe text. Share images via messaging apps on restrictive WiFi — no server needed.">
-    <link rel="manifest" href="/manifest.json">
-    <link rel="stylesheet" href="/style.css">
-    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
-    <link rel="apple-touch-icon" href="/icons/icon-192.png">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="stylesheet" href="./style.css">
+    <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+    <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <meta name="theme-color" content="#121212">
 </head>
 
 <body>
     <div id="app">
         <header>
-            <a href="/" id="home-link"><h1>NanoGlyph</h1></a>
+            <a href="./" id="home-link"><h1>NanoGlyph</h1></a>
             <p>Offline-first image sharing via URL</p>
         </header>
 
@@ -62,22 +62,22 @@
                     <label>Share via:</label>
                     <div class="platform-grid" id="platform-grid">
                         <button class="platform-btn selected" data-platform="whatsapp" data-limit="65536" type="button">
-                            <img src="/icons/whatsapp.svg" alt="WhatsApp" class="platform-icon">
+                            <img src="./icons/whatsapp.svg" alt="WhatsApp" class="platform-icon">
                             <span class="platform-name">WhatsApp</span>
                             <span class="platform-limit">65K chars</span>
                         </button>
                         <button class="platform-btn" data-platform="telegram" data-limit="4096" type="button">
-                            <img src="/icons/telegram.svg" alt="Telegram" class="platform-icon">
+                            <img src="./icons/telegram.svg" alt="Telegram" class="platform-icon">
                             <span class="platform-name">Telegram</span>
                             <span class="platform-limit">4K chars</span>
                         </button>
                         <button class="platform-btn" data-platform="messenger" data-limit="2000" type="button">
-                            <img src="/icons/messenger.svg" alt="Messenger" class="platform-icon">
+                            <img src="./icons/messenger.svg" alt="Messenger" class="platform-icon">
                             <span class="platform-name">Messenger</span>
                             <span class="platform-limit">2K chars</span>
                         </button>
                         <button class="platform-btn" data-platform="instagram" data-limit="1000" type="button">
-                            <img src="/icons/instagram.svg" alt="Instagram" class="platform-icon">
+                            <img src="./icons/instagram.svg" alt="Instagram" class="platform-icon">
                             <span class="platform-name">Instagram</span>
                             <span class="platform-limit">1K chars</span>
                         </button>
@@ -108,7 +108,7 @@
 
         <footer>
             <a href="https://github.com/GHagui/NanoGlyph-Share" target="_blank" rel="noopener" class="footer-github">
-                <img src="/icons/github.svg" alt="GitHub" class="footer-icon"> Source Code
+                <img src="./icons/github.svg" alt="GitHub" class="footer-icon"> Source Code
             </a>
             <a href="https://ghagui.github.io/Gabriel_Hagui/" target="_blank" rel="noopener" class="footer-credit">
                 ❤️ Made by Gabriel Hagui in Rust
@@ -117,10 +117,10 @@
     </div>
 
     <!-- Load Wasm module -->
-    <script type="module" src="/app.js"></script>
+    <script type="module" src="./app.js"></script>
     <script>
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/sw.js')
+            navigator.serviceWorker.register('./sw.js')
                 .then(() => console.log('Service Worker Registered'));
         }
     </script>
