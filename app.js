@@ -53,7 +53,7 @@ const chunkButtons = document.getElementById('chunk-buttons');
 const savePngBtn = document.getElementById('save-png-btn');
 
 let selectedFileBuffer = null;
-let selectedPlatformLimit = 65536; // default: WhatsApp
+let selectedPlatformLimit = 4096; // default: WhatsApp
 let currentPaletteId = -1; // -1 = auto-detect
 let paletteAutoMode = true;
 
@@ -73,7 +73,7 @@ function renderPaletteSwatches(id) {
     for (let i = 0; i < 8; i++) {
         const div = document.createElement('div');
         div.className = 'palette-swatch';
-        div.style.backgroundColor = `rgb(${colors[i*3]}, ${colors[i*3+1]}, ${colors[i*3+2]})`;
+        div.style.backgroundColor = `rgb(${colors[i * 3]}, ${colors[i * 3 + 1]}, ${colors[i * 3 + 2]})`;
         paletteSwatches.appendChild(div);
     }
 }
@@ -87,7 +87,7 @@ function renderPalettePreview(paletteId) {
         const rgba = preview.get_rgba();
         const w = preview.width;
         const h = preview.height;
-        
+
         // Replace the image preview with a canvas showing the dithered result
         let previewCanvas = document.getElementById('palette-preview-canvas');
         if (!previewCanvas) {
@@ -99,14 +99,14 @@ function renderPalettePreview(paletteId) {
         const ctx = previewCanvas.getContext('2d');
         const imageData = new ImageData(new Uint8ClampedArray(rgba), w, h);
         ctx.putImageData(imageData, 0, 0);
-        
+
         // Show canvas, hide original img
         imagePreview.style.display = 'none';
         if (!previewCanvas.parentElement) {
             previewContainer.appendChild(previewCanvas);
         }
         previewCanvas.style.display = 'block';
-        
+
         preview.free();
     } catch (e) {
         console.error('Preview error:', e);
@@ -209,22 +209,22 @@ async function bootstrap() {
 function checkHash() {
     if (window.location.hash.length > 1) {
         const hash = window.location.hash.substring(1);
-        
+
         // Skip empty or slash-only hashes
         if (!hash || hash === '/' || hash.length < 2) {
             encoderView.classList.remove('hidden');
             decoderView.classList.add('hidden');
             return;
         }
-        
+
         encoderView.classList.add('hidden');
         decoderView.classList.remove('hidden');
-        
+
         if (!wasmInitialized) {
             decoderStatus.textContent = "Loading decoder...";
             return;
         }
-        
+
         // Handle chunked links: format is /<index>-<total>/<chunk_data>
         if (hash.startsWith('/')) {
             const withoutLeadingSlash = hash.substring(1);
@@ -235,14 +235,14 @@ function checkHash() {
                     const index = parseInt(meta[0]);
                     const total = parseInt(meta[1]);
                     const chunkData = withoutLeadingSlash.substring(slashIdx + 1);
-                    
+
                     if (isNaN(index) || isNaN(total) || !chunkData) {
                         decoderStatus.textContent = "Invalid link format.";
                         return;
                     }
-                    
+
                     localStorage.setItem(`ng_chunk_${index}_${total}`, chunkData);
-                    
+
                     // Check if we have all chunks
                     let allChunks = '';
                     let missing = false;
@@ -254,7 +254,7 @@ function checkHash() {
                         }
                         allChunks += c;
                     }
-                    
+
                     if (missing) {
                         decoderStatus.textContent = `Received part ${index} of ${total}. Waiting for other parts...`;
                         decodedCanvas.classList.add('hidden');
@@ -270,7 +270,7 @@ function checkHash() {
                 }
             }
         }
-        
+
         // Single payload
         decoderStatus.textContent = "Decoding...";
         decodeAndRender(hash);
@@ -283,30 +283,30 @@ function checkHash() {
 function decodeAndRender(base62Str) {
     try {
         const decoded = decode_base62_to_image(base62Str);
-        
+
         const rgba = decoded.get_rgba();
         const width = decoded.width;
         const height = decoded.height;
         const frameCount = decoded.frame_count;
-        
+
         if (!width || !height || width === 0 || height === 0) {
             decoded.free();
             decoderStatus.textContent = "Invalid image data (zero dimensions).";
             decoderStatus.classList.remove('hidden');
             return;
         }
-        
+
         decodedCanvas.width = width;
         decodedCanvas.height = height;
         decodedCanvas.classList.remove('hidden');
-        
+
         const ctx = decodedCanvas.getContext('2d');
         const frameSize = width * height * 4;
-        
+
         if (window.animationInterval) {
             clearInterval(window.animationInterval);
         }
-        
+
         if (frameCount > 1) {
             let currentFrame = 0;
             const drawFrame = () => {
@@ -322,11 +322,11 @@ function decodeAndRender(base62Str) {
             const imageData = new ImageData(new Uint8ClampedArray(rgba), width, height);
             ctx.putImageData(imageData, 0, 0);
         }
-        
+
         decoderStatus.classList.add('hidden');
         savePngBtn.classList.remove('hidden');
         decoded.free();
-    } catch(e) {
+    } catch (e) {
         console.error("Failed to decode:", e);
         decoderStatus.textContent = "Failed to decode image: " + e;
         decoderStatus.classList.remove('hidden');
@@ -382,8 +382,8 @@ fileInput.addEventListener('change', (e) => {
 function isHeifFormat(file) {
     const type = file.type.toLowerCase();
     const name = file.name.toLowerCase();
-    return type === 'image/heif' || type === 'image/heic' || 
-           name.endsWith('.heif') || name.endsWith('.heic');
+    return type === 'image/heif' || type === 'image/heic' ||
+        name.endsWith('.heif') || name.endsWith('.heic');
 }
 
 // Convert image file to PNG via canvas (for formats Wasm can't decode directly)
@@ -470,17 +470,17 @@ function getChunkLimit() {
 // Encoding Logic
 encodeBtn.addEventListener('click', () => {
     if (!selectedFileBuffer) return;
-    
+
     try {
         encodeBtn.disabled = true;
         encodeBtn.textContent = 'Encoding...';
-        
+
         const maxDimension = parseInt(qualitySelect.value, 10);
-        
+
         const base62Str = paletteAutoMode
             ? encode_image_to_base62(selectedFileBuffer, maxDimension)
             : encode_image_to_base62_with_palette(selectedFileBuffer, maxDimension, currentPaletteId);
-        
+
         const baseUrl = window.location.origin + window.location.pathname;
         const platformLimit = Math.min(getChunkLimit(), BROWSER_URL_MAX);
         // Reserve chars for URL overhead: baseUrl + "#/99-99/" (worst-case chunk prefix = 8 chars)
@@ -488,7 +488,7 @@ encodeBtn.addEventListener('click', () => {
         const chunkDataLimit = platformLimit - urlOverhead;
         // For single links the overhead is just baseUrl + "#" (1 char less)
         const singleUrlOverhead = baseUrl.length + 1;
-        
+
         if (base62Str.length + singleUrlOverhead <= platformLimit) {
             // Single link — fits within the limit
             const url = baseUrl + '#' + base62Str;
@@ -507,16 +507,16 @@ encodeBtn.addEventListener('click', () => {
                 chunks.push(base62Str.substring(i, i + chunkDataLimit));
             }
             const total = chunks.length;
-            
+
             // URL box shows the full unbroken payload
             urlBox.innerHTML = '';
             const fullUrl = baseUrl + '#' + base62Str;
             urlBox.textContent = fullUrl;
-            
+
             // Hide default share/copy, show per-chunk buttons
             shareBtn.classList.add('hidden');
             copyBtn.classList.add('hidden');
-            
+
             chunkButtons.innerHTML = '';
             const info = document.createElement('p');
             info.style.color = 'var(--secondary-color)';
@@ -524,23 +524,23 @@ encodeBtn.addEventListener('click', () => {
             info.style.marginBottom = '0.25rem';
             info.textContent = `Split into ${total} parts for sharing:`;
             chunkButtons.appendChild(info);
-            
+
             const list = document.createElement('div');
             list.className = 'chunk-buttons-list';
-            
+
             chunks.forEach((chunk, idx) => {
                 const chunkUrl = `${baseUrl}#/${idx + 1}-${total}/${chunk}`;
-                
+
                 const row = document.createElement('div');
                 row.className = 'chunk-btn-row';
-                
+
                 const shareChunkBtn = document.createElement('button');
                 shareChunkBtn.className = 'btn secondary';
                 shareChunkBtn.textContent = `Share Part ${idx + 1}`;
                 shareChunkBtn.addEventListener('click', async () => {
-                    const data = { title: `NanoGlyph — Part ${idx+1} of ${total}`, url: chunkUrl };
+                    const data = { title: `NanoGlyph — Part ${idx + 1} of ${total}`, url: chunkUrl };
                     if (navigator.share) {
-                        try { await navigator.share(data); } catch(e) { console.log(e); }
+                        try { await navigator.share(data); } catch (e) { console.log(e); }
                     } else {
                         copyToClipboard(chunkUrl).then(() => {
                             shareChunkBtn.textContent = 'Copied!';
@@ -549,7 +549,7 @@ encodeBtn.addEventListener('click', () => {
                     }
                 });
                 row.appendChild(shareChunkBtn);
-                
+
                 const copyChunkBtn = document.createElement('button');
                 copyChunkBtn.className = 'btn outline';
                 copyChunkBtn.textContent = `Copy Part ${idx + 1}`;
@@ -560,15 +560,15 @@ encodeBtn.addEventListener('click', () => {
                     });
                 });
                 row.appendChild(copyChunkBtn);
-                
+
                 list.appendChild(row);
             });
-            
+
             chunkButtons.appendChild(list);
             savePreviewBtn.classList.remove('hidden');
             resultContainer.classList.remove('hidden');
         }
-        
+
     } catch (e) {
         console.error("Encoding error:", e);
         alert("Failed to encode image. See console.");
@@ -581,15 +581,15 @@ encodeBtn.addEventListener('click', () => {
 // Share and Copy Logic
 shareBtn.addEventListener('click', async () => {
     // For chunked payloads, share only the first chunk link; for single, share the full URL
-    const firstUrl = urlBox.querySelector('div') 
-        ? urlBox.querySelector('div div')?.textContent || urlBox.textContent 
+    const firstUrl = urlBox.querySelector('div')
+        ? urlBox.querySelector('div div')?.textContent || urlBox.textContent
         : urlBox.textContent;
-    
+
     const shareData = {
         title: 'NanoGlyph Image',
         url: firstUrl
     };
-    
+
     if (navigator.share) {
         try {
             await navigator.share(shareData);

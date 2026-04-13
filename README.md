@@ -33,7 +33,7 @@ The entire image lives in the link. Send it via WhatsApp, Telegram, SMS, email �
 | Feature | Description |
 |---------|-------------|
 | 🎨 **99 Color Palettes** | 20 hand-crafted + 79 procedural palettes with real-time preview |
-| 📱 **Platform-Aware Chunking** | Auto-splits URLs for WhatsApp (32K), Telegram (4K), Messenger (2K), Instagram (1K) |
+| 📱 **Platform-Aware Chunking** | Auto-splits URLs for WhatsApp (4K), Telegram (4K), Messenger (2K), Instagram (1K) |
 | 🖼️ **Multi-Format Support** | PNG, JPEG, GIF, WebP, BMP, HEIF/HEIC — including animations |
 | 💾 **Save as PNG** | Download received images directly to your gallery with one tap |
 | 🔒 **Zero Server** | Everything runs in your browser via WebAssembly — no data leaves your device |
@@ -125,8 +125,8 @@ python3 -m http.server 8080
 | Source | Quality | Palette | Chunks (WhatsApp) | URL Length |
 |--------|---------|---------|-------------------|------------|
 | Photo (1080p) | Medium (128px) | Auto | 1 | ~8,000 chars |
-| Photo (1080p) | High (192px) | Auto | 1 | ~18,000 chars |
-| Photo (1080p) | Extreme (256px) | Auto | 1-2 | ~28,000 chars |
+| Photo (1080p) | High (192px) | Auto | 5 | ~18,000 chars |
+| Photo (1080p) | Extreme (256px) | Auto | 7 | ~28,000 chars |
 | Icon (64x64) | Low (64px) | Auto | 1 | ~800 chars |
 
 ---
@@ -149,12 +149,10 @@ Each palette contains **8 colors**, and the encoder automatically selects the be
 
 | Platform | Character Limit | Auto-Chunk |
 |----------|----------------|------------|
-| WhatsApp | 32,779* | ✅ |
+| WhatsApp | 4,096 | ✅ |
 | Telegram | 4,096 | ✅ |
 | Messenger | 2,000 | ✅ |
 | Instagram | 1,000 | ✅ |
-
-*\*Capped at Chrome's max URL length*
 
 ---
 
