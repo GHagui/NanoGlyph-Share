@@ -92,7 +92,8 @@ const platformContainer = document.getElementById('platform-container');
 const platformGrid = document.getElementById('platform-grid');
 const paletteContainer = document.getElementById('palette-container');
 const paletteSwatches = document.getElementById('palette-swatches');
-const paletteIdDisplay = document.getElementById('palette-id-display');
+const paletteBtnAuto = document.getElementById('palette-btn-auto');
+const paletteBtnManual = document.getElementById('palette-btn-manual');
 const paletteModeLabel = document.getElementById('palette-mode-label');
 const palettePrevBtn = document.getElementById('palette-prev');
 const paletteNextBtn = document.getElementById('palette-next');
@@ -112,6 +113,7 @@ function initImageSession(buffer) {
 let selectedPlatformLimit = 4096; // default: WhatsApp
 let currentPaletteId = -1; // -1 = auto-detect
 let paletteAutoMode = true;
+let lastAutoPaletteId = 0;
 
 // ── Image Adjustments ──────────────────────────────────────────────────────
 const ADJ_DEFAULTS = { exposure: 0, contrast: 0, saturation: 0, hue: 0, temperature: 0 };
@@ -251,10 +253,11 @@ function renderPalettePreview(paletteId) {
         const w = preview.width;
         const h = preview.height;
         const actualPaletteId = preview.palette_id;
+        lastAutoPaletteId = actualPaletteId;
         
         if (paletteAutoMode) {
              renderPaletteSwatches(actualPaletteId);
-             paletteIdDisplay.textContent = `Auto (Match #${actualPaletteId})`;
+             paletteModeLabel.textContent = `Auto — Match #${actualPaletteId}`;
         }
 
         // Replace the image preview with a canvas showing the dithered result
@@ -284,11 +287,14 @@ function renderPalettePreview(paletteId) {
 
 function updatePaletteUI() {
     const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
+    
     if (paletteAutoMode) {
-        paletteIdDisplay.textContent = 'Auto-detect';
+        paletteBtnAuto.classList.add('active');
+        paletteBtnManual.classList.remove('active');
         paletteModeLabel.textContent = 'Auto — best match';
     } else {
-        paletteIdDisplay.textContent = `Palette #${currentPaletteId}`;
+        paletteBtnAuto.classList.remove('active');
+        paletteBtnManual.classList.add('active');
         paletteModeLabel.textContent = `Manual — ${currentPaletteId}/98`;
     }
     // Always render dithered preview when image is loaded
@@ -315,10 +321,17 @@ paletteNextBtn.addEventListener('click', () => {
     updatePaletteUI();
 });
 
-// Double-click swatches to toggle auto
-paletteSwatches.addEventListener('dblclick', () => {
+paletteBtnAuto.addEventListener('click', () => {
     paletteAutoMode = true;
     currentPaletteId = -1;
+    updatePaletteUI();
+});
+
+paletteBtnManual.addEventListener('click', () => {
+    if (paletteAutoMode) {
+        paletteAutoMode = false;
+        currentPaletteId = lastAutoPaletteId;
+    }
     updatePaletteUI();
 });
 

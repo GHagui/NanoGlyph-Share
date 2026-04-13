@@ -180,13 +180,28 @@ select:focus {
     margin-bottom: 0;
 }
 
-.palette-id-display {
-    font-size: 0.75rem;
-    color: var(--primary-color);
-    font-weight: 600;
-    background: rgba(187, 134, 252, 0.12);
-    padding: 0.15rem 0.5rem;
-    border-radius: 4px;
+.palette-toggle-group {
+    display: flex;
+    background: #1e1e1e;
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.palette-toggle {
+    background: transparent;
+    color: #666;
+    border: none;
+    padding: 0.25rem 0.6rem;
+    font-size: 0.7rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.palette-toggle.active {
+    background: var(--primary-color);
+    color: #fff;
 }
 
 .palette-swatches {
