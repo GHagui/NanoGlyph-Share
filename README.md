@@ -38,7 +38,8 @@ The entire image lives in the link. Send it via WhatsApp, Telegram, SMS, email �
 | 💾 **Save as PNG** | Download received images directly to your gallery with one tap |
 | 🔒 **Zero Server** | Everything runs in your browser via WebAssembly — no data leaves your device |
 | 📶 **Offline-First** | Service Worker caches everything — works without internet after first visit |
-| ⚡ **Rust + WebAssembly** | Image processing at near-native speed using Bayer dithering and RLE compression |
+| ⚡ **Rust + WebAssembly** | Image processing at near-native speed using Bayer dithering and RLE |
+| 🗜️ **Dual Compression** | Choose between Brotli (maximum compression) or Zlib (compatibility) |
 | 🎚️ **Quality Control** | Tiny (32px) to Maximum (512px) — you choose the tradeoff |
 
 ---
@@ -54,7 +55,7 @@ flowchart LR
     C --> D["✦ Bayer\nDithering"]
     D --> E["📦 Pack\n3-bit/px"]
     E --> F["🗜️ RLE\nEncode"]
-    F --> G["💨 Deflate\nCompress"]
+    F --> G["💨 Brotli/Zlib\nCompress"]
     G --> H["🔤 Base62\nEncode"]
     H --> I["🔗 URL\nFragment #..."]
 ```
@@ -64,7 +65,7 @@ flowchart LR
 ```mermaid
 flowchart LR
     A["🔗 URL\nFragment #..."] --> B["🔤 Base62\nDecode"]
-    B --> C["💨 Deflate\nDecompress"]
+    B --> C["💨 Brotli/Zlib\nDecompress"]
     C --> D["🗜️ RLE\nDecode"]
     D --> E["📦 Unpack\n3-bit/px"]
     E --> F["🎨 Palette\nLookup"]
@@ -79,7 +80,7 @@ flowchart LR
 3. **Dither** — Bayer ordered dithering for smooth color transitions
 4. **Pack** — 3 bits per pixel (8 colors = 3 bits, 62% size reduction vs 8-bit)
 5. **RLE** — Run-length encoding for repeated color runs
-6. **Deflate** — Zlib compression for remaining entropy
+6. **Compress** — Brotli (Q11) or Zlib (L9) for maximum entropy compression
 7. **Base62** — URL-safe encoding using `A-Za-z0-9` only
 
 The result is a self-contained URL like:
@@ -145,14 +146,19 @@ Each palette contains **8 colors**, and the encoder automatically selects the be
 
 ---
 
-## 📋 Platform URL Limits
+## 📋 Platform Hyperlink Limits
 
-| Platform | Character Limit | Auto-Chunk |
-|----------|----------------|------------|
-| WhatsApp | 4,096 | ✅ |
-| Telegram | 4,096 | ✅ |
-| Messenger | 2,000 | ✅ |
-| Instagram | 1,000 | ✅ |
+> [!IMPORTANT]
+> Messaging apps auto-hyperlink URLs only up to a certain length. Beyond that, the URL is sent as **plain text** — the receiver must manually copy-paste it into the browser.
+
+| Platform | Clickable Link Limit | Auto-Chunk |
+|----------|---------------------|-----------------|
+| WhatsApp | ~4,096 chars | ✅ |  
+| Telegram | ~4,096 chars | ✅ |
+| Messenger | ~2,000 chars | ✅ |
+| Instagram | ~1,000 chars | ✅ |
+
+NanoGlyph chunks based on the clickable limit so every shared part is a tappable link.
 
 ---
 

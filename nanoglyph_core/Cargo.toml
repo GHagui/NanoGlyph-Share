@@ -13,6 +13,7 @@ crate-type = ["cdylib", "rlib"]
 wasm-bindgen = "0.2"
 image = "0.25"
 flate2 = "1.0"
+brotli = "8.0.2"
 num-bigint = "0.4"
 num-traits = "0.2"
 num-integer = "0.1"

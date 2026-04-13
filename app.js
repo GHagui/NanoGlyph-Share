@@ -34,6 +34,8 @@ const imagePreview = document.getElementById('image-preview');
 const encodeBtn = document.getElementById('encode-btn');
 const settingsContainer = document.getElementById('settings-container');
 const qualitySelect = document.getElementById('quality-select');
+const compressionContainer = document.getElementById('compression-container');
+const compressionSelect = document.getElementById('compression-select');
 const resultContainer = document.getElementById('result-container');
 const urlBox = document.getElementById('url-box');
 const shareBtn = document.getElementById('share-btn');
@@ -425,6 +427,7 @@ function handleFile(file) {
         imagePreview.src = e.target.result;
         previewContainer.classList.remove('hidden');
         settingsContainer.classList.remove('hidden');
+        compressionContainer.classList.remove('hidden');
         platformContainer.classList.remove('hidden');
         paletteContainer.classList.remove('hidden');
         dropZone.classList.add('hidden');
@@ -476,10 +479,11 @@ encodeBtn.addEventListener('click', () => {
         encodeBtn.textContent = 'Encoding...';
 
         const maxDimension = parseInt(qualitySelect.value, 10);
+        const useBrotli = compressionSelect.value === 'brotli';
 
         const base62Str = paletteAutoMode
-            ? encode_image_to_base62(selectedFileBuffer, maxDimension)
-            : encode_image_to_base62_with_palette(selectedFileBuffer, maxDimension, currentPaletteId);
+            ? encode_image_to_base62(selectedFileBuffer, maxDimension, useBrotli)
+            : encode_image_to_base62_with_palette(selectedFileBuffer, maxDimension, currentPaletteId, useBrotli);
 
         const baseUrl = window.location.origin + window.location.pathname;
         const platformLimit = Math.min(getChunkLimit(), BROWSER_URL_MAX);

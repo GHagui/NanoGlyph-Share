@@ -2,12 +2,17 @@ use image::{RgbaImage, imageops::FilterType, AnimationDecoder};
 use std::io::Write;
 use flate2::write::ZlibEncoder;
 use flate2::Compression;
+use brotli::CompressorWriter as BrotliCompressor;
 use num_bigint::BigUint;
 use num_integer::Integer;
 
 use crate::pixel_data::pack_pixels;
 use crate::palette::get_palette;
 use crate::{NanoGlyphHeader, NanoGlyphPayload};
+
+// Magic bytes identifying the codec (prepended before compressed data)
+const CODEC_ZLIB: u8 = 0x5A;   // 'Z'
+const CODEC_BROTLI: u8 = 0x42; // 'B'
 
 // Bayer 4x4 dither matrix, normalized to 0..64
 const BAYER_4X4: [[u8; 4]; 4] = [
@@ -17,7 +22,7 @@ const BAYER_4X4: [[u8; 4]; 4] = [
     [60, 28, 52, 20],
 ];
 
-pub fn encode_image(img_data: &[u8], max_dimension: u32, forced_palette_id: Option<u8>) -> Result<String, String> {
+pub fn encode_image(img_data: &[u8], max_dimension: u32, forced_palette_id: Option<u8>, use_brotli: bool) -> Result<String, String> {
     let mut frames = Vec::new();
     
     // Try to load as GIF animation first
@@ -99,15 +104,37 @@ pub fn encode_image(img_data: &[u8], max_dimension: u32, forced_palette_id: Opti
     let payload = NanoGlyphPayload::new(header, rle_pixels);
     let binary = payload.to_binary();
     
-    // Deflate compression
-    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
-    encoder.write_all(&binary).map_err(|e| e.to_string())?;
-    let compressed_binary = encoder.finish().map_err(|e| e.to_string())?;
+    // Compress with the chosen codec
+    let compressed_binary = if use_brotli {
+        compress_brotli(&binary)?
+    } else {
+        compress_zlib(&binary)?
+    };
     
     // 6. Base62 Encode
     let base62_str = base62_encode(&compressed_binary);
     
     Ok(base62_str)
+}
+
+fn compress_zlib(data: &[u8]) -> Result<Vec<u8>, String> {
+    let mut out = vec![CODEC_ZLIB];
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
+    encoder.write_all(data).map_err(|e| e.to_string())?;
+    out.extend(encoder.finish().map_err(|e| e.to_string())?);
+    Ok(out)
+}
+
+fn compress_brotli(data: &[u8]) -> Result<Vec<u8>, String> {
+    let mut compressed = Vec::new();
+    {
+        // quality=11 (max), lgwin=22 (max window)
+        let mut enc = BrotliCompressor::new(&mut compressed, 4096, 11, 22);
+        enc.write_all(data).map_err(|e| e.to_string())?;
+    }
+    let mut out = vec![CODEC_BROTLI];
+    out.extend(compressed);
+    Ok(out)
 }
 
 fn base62_encode(input: &[u8]) -> String {

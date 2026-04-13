@@ -6,13 +6,13 @@ pub mod decoder;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub fn encode_image_to_base62(img_data: &[u8], max_dimension: u32) -> Result<String, JsValue> {
-    encoder::encode_image(img_data, max_dimension, None).map_err(|e| JsValue::from_str(&e))
+pub fn encode_image_to_base62(img_data: &[u8], max_dimension: u32, use_brotli: bool) -> Result<String, JsValue> {
+    encoder::encode_image(img_data, max_dimension, None, use_brotli).map_err(|e| JsValue::from_str(&e))
 }
 
 #[wasm_bindgen]
-pub fn encode_image_to_base62_with_palette(img_data: &[u8], max_dimension: u32, palette_id: u8) -> Result<String, JsValue> {
-    encoder::encode_image(img_data, max_dimension, Some(palette_id)).map_err(|e| JsValue::from_str(&e))
+pub fn encode_image_to_base62_with_palette(img_data: &[u8], max_dimension: u32, palette_id: u8, use_brotli: bool) -> Result<String, JsValue> {
+    encoder::encode_image(img_data, max_dimension, Some(palette_id), use_brotli).map_err(|e| JsValue::from_str(&e))
 }
 
 /// Returns a flat array of 24 bytes (8 colors × 3 RGB bytes) for the given palette ID (0-98)

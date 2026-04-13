@@ -19,11 +19,31 @@ pub fn decode_base62_to_rgba(base62_str: &str) -> Result<(u32, u32, u8, Vec<u8>)
         return Err("Payload decoded to empty data — link appears to be corrupted.".to_string());
     }
 
-    // 2. Deflate Decompress
-    let mut decoder = ZlibDecoder::new(&compressed_binary[..]);
+    // 2. Decompress based on magic byte
     let mut binary = Vec::new();
-    decoder.read_to_end(&mut binary)
-        .map_err(|_| "Decompression failed — link may be truncated or partially copied. Make sure you received all parts.".to_string())?;
+
+    if compressed_binary.is_empty() {
+        return Err("Decompression failed — payload is empty.".to_string());
+    }
+
+    match compressed_binary[0] {
+        0x5A => { // CODEC_ZLIB ('Z')
+            let mut decoder = ZlibDecoder::new(&compressed_binary[1..]);
+            decoder.read_to_end(&mut binary)
+                .map_err(|_| "Zlib decompression failed — link may be truncated or partially copied.".to_string())?;
+        }
+        0x42 => { // CODEC_BROTLI ('B')
+            let mut decoder = brotli::Decompressor::new(&compressed_binary[1..], 4096);
+            decoder.read_to_end(&mut binary)
+                .map_err(|_| "Brotli decompression failed — link may be truncated or partially copied.".to_string())?;
+        }
+        _ => {
+            // Backward compatibility for old links that didn't have a magic byte (defaults to Zlib)
+            let mut decoder = ZlibDecoder::new(&compressed_binary[..]);
+            decoder.read_to_end(&mut binary)
+                .map_err(|_| "Backward-compatible decompression failed — link may be corrupted.".to_string())?;
+        }
+    }
 
     // 3. Deserialize Header and Payload
     let payload = NanoGlyphPayload::from_binary(&binary)
