@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nanoglyph-v2';
+const CACHE_NAME = 'nanoglyph-v3';
 const ASSETS = [
     '/',
     '/index.html',
@@ -7,6 +7,10 @@ const ASSETS = [
     '/manifest.json',
     '/icons/icon-192.png',
     '/icons/icon-512.png',
+    '/icons/whatsapp.svg',
+    '/icons/telegram.svg',
+    '/icons/messenger.svg',
+    '/icons/instagram.svg',
     '/nanoglyph_core/pkg/nanoglyph_core_bg.wasm',
     '/nanoglyph_core/pkg/nanoglyph_core.js'
 ];

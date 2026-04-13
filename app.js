@@ -1,4 +1,26 @@
-import init, { encode_image_to_base62, decode_base62_to_image } from './nanoglyph_core/pkg/nanoglyph_core.js';
+import init, { encode_image_to_base62, encode_image_to_base62_with_palette, decode_base62_to_image, get_palette_colors, preview_image_with_palette } from './nanoglyph_core/pkg/nanoglyph_core.js';
+
+// Clipboard helper with fallback for non-HTTPS contexts
+function copyToClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+    }
+    // Fallback: hidden textarea + execCommand
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        return Promise.resolve();
+    } catch (err) {
+        document.body.removeChild(ta);
+        return Promise.reject(err);
+    }
+}
 
 let wasmInitialized = false;
 
@@ -19,8 +41,121 @@ const copyBtn = document.getElementById('copy-btn');
 const resetBtn = document.getElementById('reset-btn');
 const decodedCanvas = document.getElementById('decoded-canvas');
 const decoderStatus = document.getElementById('decoder-status');
+const platformContainer = document.getElementById('platform-container');
+const platformGrid = document.getElementById('platform-grid');
+const paletteContainer = document.getElementById('palette-container');
+const paletteSwatches = document.getElementById('palette-swatches');
+const paletteIdDisplay = document.getElementById('palette-id-display');
+const paletteModeLabel = document.getElementById('palette-mode-label');
+const palettePrevBtn = document.getElementById('palette-prev');
+const paletteNextBtn = document.getElementById('palette-next');
+const chunkButtons = document.getElementById('chunk-buttons');
 
 let selectedFileBuffer = null;
+let selectedPlatformLimit = 65536; // default: WhatsApp
+let currentPaletteId = -1; // -1 = auto-detect
+let paletteAutoMode = true;
+
+// Platform selection logic
+platformGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('.platform-btn');
+    if (!btn) return;
+    platformGrid.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedPlatformLimit = parseInt(btn.dataset.limit, 10);
+});
+
+// Palette rendering
+function renderPaletteSwatches(id) {
+    paletteSwatches.innerHTML = '';
+    const colors = get_palette_colors(id);
+    for (let i = 0; i < 8; i++) {
+        const div = document.createElement('div');
+        div.className = 'palette-swatch';
+        div.style.backgroundColor = `rgb(${colors[i*3]}, ${colors[i*3+1]}, ${colors[i*3+2]})`;
+        paletteSwatches.appendChild(div);
+    }
+}
+
+// Real-time palette preview on the image
+function renderPalettePreview(paletteId) {
+    if (!selectedFileBuffer || !wasmInitialized) return;
+    try {
+        const maxDim = parseInt(qualitySelect.value, 10);
+        const preview = preview_image_with_palette(selectedFileBuffer, maxDim, paletteId);
+        const rgba = preview.get_rgba();
+        const w = preview.width;
+        const h = preview.height;
+        
+        // Replace the image preview with a canvas showing the dithered result
+        let previewCanvas = document.getElementById('palette-preview-canvas');
+        if (!previewCanvas) {
+            previewCanvas = document.createElement('canvas');
+            previewCanvas.id = 'palette-preview-canvas';
+        }
+        previewCanvas.width = w;
+        previewCanvas.height = h;
+        const ctx = previewCanvas.getContext('2d');
+        const imageData = new ImageData(new Uint8ClampedArray(rgba), w, h);
+        ctx.putImageData(imageData, 0, 0);
+        
+        // Show canvas, hide original img
+        imagePreview.style.display = 'none';
+        if (!previewCanvas.parentElement) {
+            previewContainer.appendChild(previewCanvas);
+        }
+        previewCanvas.style.display = 'block';
+        
+        preview.free();
+    } catch (e) {
+        console.error('Preview error:', e);
+    }
+}
+
+function updatePaletteUI() {
+    const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+    if (paletteAutoMode) {
+        paletteIdDisplay.textContent = 'Auto-detect';
+        paletteModeLabel.textContent = 'Auto — best match';
+    } else {
+        paletteIdDisplay.textContent = `Palette #${currentPaletteId}`;
+        paletteModeLabel.textContent = `Manual — ${currentPaletteId}/98`;
+    }
+    // Always render dithered preview when image is loaded
+    if (selectedFileBuffer && wasmInitialized) {
+        renderPalettePreview(effectiveId);
+    }
+    paletteSwatches.classList.add('active');
+    renderPaletteSwatches(effectiveId);
+}
+
+palettePrevBtn.addEventListener('click', () => {
+    paletteAutoMode = false;
+    if (currentPaletteId <= 0) currentPaletteId = 98;
+    else currentPaletteId--;
+    updatePaletteUI();
+});
+
+paletteNextBtn.addEventListener('click', () => {
+    paletteAutoMode = false;
+    if (currentPaletteId >= 98) currentPaletteId = 0;
+    else currentPaletteId++;
+    updatePaletteUI();
+});
+
+// Double-click swatches to toggle auto
+paletteSwatches.addEventListener('dblclick', () => {
+    paletteAutoMode = true;
+    currentPaletteId = -1;
+    updatePaletteUI();
+});
+
+// Re-render preview when quality/max-size changes
+qualitySelect.addEventListener('change', () => {
+    if (!paletteAutoMode && selectedFileBuffer && wasmInitialized) {
+        renderPalettePreview(currentPaletteId);
+    }
+});
 
 async function bootstrap() {
     try {
@@ -182,24 +317,41 @@ function handleFile(file) {
         return;
     }
 
+    // Read array buffer (needed for Wasm preview)
+    const arrayBufferReader = new FileReader();
+    arrayBufferReader.onload = (e) => {
+        selectedFileBuffer = new Uint8Array(e.target.result);
+        // Trigger real-time preview immediately on upload
+        if (wasmInitialized && !paletteAutoMode) {
+            renderPalettePreview(currentPaletteId);
+        } else if (wasmInitialized) {
+            renderPalettePreview(0);
+        }
+    };
+    arrayBufferReader.readAsArrayBuffer(file);
+
+    // Read data URL for img preview
     const reader = new FileReader();
     reader.onload = (e) => {
         imagePreview.src = e.target.result;
         previewContainer.classList.remove('hidden');
         settingsContainer.classList.remove('hidden');
+        platformContainer.classList.remove('hidden');
+        paletteContainer.classList.remove('hidden');
         dropZone.classList.add('hidden');
         encodeBtn.disabled = !wasmInitialized;
+        if (wasmInitialized) {
+            updatePaletteUI();
+        }
     };
     reader.readAsDataURL(file);
-
-    const arrayBufferReader = new FileReader();
-    arrayBufferReader.onload = (e) => {
-        selectedFileBuffer = new Uint8Array(e.target.result);
-    };
-    arrayBufferReader.readAsArrayBuffer(file);
 }
 
-const CHUNK_CHAR_LIMIT = 3000;
+const DEFAULT_CHUNK_CHAR_LIMIT = 3000;
+
+function getChunkLimit() {
+    return selectedPlatformLimit || DEFAULT_CHUNK_CHAR_LIMIT;
+}
 
 // Encoding Logic
 encodeBtn.addEventListener('click', () => {
@@ -211,68 +363,93 @@ encodeBtn.addEventListener('click', () => {
         
         const maxDimension = parseInt(qualitySelect.value, 10);
         
-        const base62Str = encode_image_to_base62(selectedFileBuffer, maxDimension);
+        const base62Str = paletteAutoMode
+            ? encode_image_to_base62(selectedFileBuffer, maxDimension)
+            : encode_image_to_base62_with_palette(selectedFileBuffer, maxDimension, currentPaletteId);
         
         const baseUrl = window.location.origin + window.location.pathname;
+        const platformLimit = getChunkLimit();
+        // Reserve chars for URL overhead: baseUrl + "#/99-99/" (worst-case chunk prefix = 8 chars)
+        const urlOverhead = baseUrl.length + 8; // e.g. "http://192.168.15.20:8080/#/99-99/"
+        const chunkDataLimit = platformLimit - urlOverhead;
+        // For single links the overhead is just baseUrl + "#" (1 char less)
+        const singleUrlOverhead = baseUrl.length + 1;
         
-        if (base62Str.length <= CHUNK_CHAR_LIMIT) {
+        if (base62Str.length + singleUrlOverhead <= platformLimit) {
             // Single link — fits within the limit
             const url = baseUrl + '#' + base62Str;
             urlBox.innerHTML = '';
             urlBox.textContent = url;
+            chunkButtons.innerHTML = '';
+            // Show normal share/copy buttons
+            shareBtn.classList.remove('hidden');
+            copyBtn.classList.remove('hidden');
             resultContainer.classList.remove('hidden');
         } else {
             // Payload exceeds limit — split into chunks
             const chunks = [];
-            for (let i = 0; i < base62Str.length; i += CHUNK_CHAR_LIMIT) {
-                chunks.push(base62Str.substring(i, i + CHUNK_CHAR_LIMIT));
+            for (let i = 0; i < base62Str.length; i += chunkDataLimit) {
+                chunks.push(base62Str.substring(i, i + chunkDataLimit));
             }
             const total = chunks.length;
             
+            // URL box shows the full unbroken payload
             urlBox.innerHTML = '';
+            const fullUrl = baseUrl + '#' + base62Str;
+            urlBox.textContent = fullUrl;
             
+            // Hide default share/copy, show per-chunk buttons
+            shareBtn.classList.add('hidden');
+            copyBtn.classList.add('hidden');
+            
+            chunkButtons.innerHTML = '';
             const info = document.createElement('p');
             info.style.color = 'var(--secondary-color)';
-            info.style.marginBottom = '0.5rem';
-            info.style.fontFamily = 'inherit';
-            info.textContent = `Image split into ${total} links. Share all of them in order:`;
-            urlBox.appendChild(info);
+            info.style.fontSize = '0.85rem';
+            info.style.marginBottom = '0.25rem';
+            info.textContent = `Split into ${total} parts for sharing:`;
+            chunkButtons.appendChild(info);
+            
+            const list = document.createElement('div');
+            list.className = 'chunk-buttons-list';
             
             chunks.forEach((chunk, idx) => {
                 const chunkUrl = `${baseUrl}#/${idx + 1}-${total}/${chunk}`;
                 
-                const linkDiv = document.createElement('div');
-                linkDiv.style.marginBottom = '0.75rem';
+                const row = document.createElement('div');
+                row.className = 'chunk-btn-row';
                 
-                const label = document.createElement('strong');
-                label.style.color = 'var(--primary-color)';
-                label.textContent = `Part ${idx + 1} of ${total}:`;
-                linkDiv.appendChild(label);
-                
-                const urlText = document.createElement('div');
-                urlText.style.wordBreak = 'break-all';
-                urlText.style.fontSize = '0.8rem';
-                urlText.style.marginTop = '0.25rem';
-                urlText.textContent = chunkUrl;
-                linkDiv.appendChild(urlText);
+                const shareChunkBtn = document.createElement('button');
+                shareChunkBtn.className = 'btn secondary';
+                shareChunkBtn.textContent = `Share Part ${idx + 1}`;
+                shareChunkBtn.addEventListener('click', async () => {
+                    const data = { title: `NanoGlyph Part ${idx+1}/${total}`, text: `Part ${idx+1} of ${total}`, url: chunkUrl };
+                    if (navigator.share) {
+                        try { await navigator.share(data); } catch(e) { console.log(e); }
+                    } else {
+                        copyToClipboard(chunkUrl).then(() => {
+                            shareChunkBtn.textContent = 'Copied!';
+                            setTimeout(() => { shareChunkBtn.textContent = `Share Part ${idx + 1}`; }, 1500);
+                        });
+                    }
+                });
+                row.appendChild(shareChunkBtn);
                 
                 const copyChunkBtn = document.createElement('button');
                 copyChunkBtn.className = 'btn outline';
-                copyChunkBtn.style.marginTop = '0.25rem';
-                copyChunkBtn.style.padding = '0.4rem 0.8rem';
-                copyChunkBtn.style.fontSize = '0.85rem';
                 copyChunkBtn.textContent = `Copy Part ${idx + 1}`;
                 copyChunkBtn.addEventListener('click', () => {
-                    navigator.clipboard.writeText(chunkUrl).then(() => {
+                    copyToClipboard(chunkUrl).then(() => {
                         copyChunkBtn.textContent = 'Copied!';
                         setTimeout(() => { copyChunkBtn.textContent = `Copy Part ${idx + 1}`; }, 1500);
                     });
                 });
-                linkDiv.appendChild(copyChunkBtn);
+                row.appendChild(copyChunkBtn);
                 
-                urlBox.appendChild(linkDiv);
+                list.appendChild(row);
             });
             
+            chunkButtons.appendChild(list);
             resultContainer.classList.remove('hidden');
         }
         
@@ -298,19 +475,26 @@ shareBtn.addEventListener('click', async () => {
         url: firstUrl
     };
     
-    if (navigator.share && navigator.canShare(shareData)) {
+    if (navigator.share) {
         try {
             await navigator.share(shareData);
         } catch (e) {
             console.log('Share canceled or failed', e);
         }
     } else {
-        alert("Web Share API is not supported on your device/browser.");
+        // Fallback: copy URL to clipboard
+        copyToClipboard(firstUrl).then(() => {
+            shareBtn.textContent = 'Link Copied!';
+            setTimeout(() => { shareBtn.textContent = 'Share Link'; }, 2000);
+        }).catch(() => {
+            // Last resort: prompt with the URL
+            prompt('Copy this link:', firstUrl);
+        });
     }
 });
 
 copyBtn.addEventListener('click', () => {
-    navigator.clipboard.writeText(urlBox.textContent)
+    copyToClipboard(urlBox.textContent)
         .then(() => {
             const originalText = copyBtn.textContent;
             copyBtn.textContent = 'Copied!';

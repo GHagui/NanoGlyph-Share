@@ -1,0 +1,1 @@
+cd nanoglyph_core && wasm-pack build --target web

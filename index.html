@@ -1,20 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>NanoGlyph — Offline Image Sharing via URL</title>
-    <meta name="description" content="NanoGlyph is an offline-first PWA that encodes images into compact, URL-safe text. Share images via messaging apps on restrictive WiFi — no server needed.">
+    <meta name="description"
+        content="NanoGlyph is an offline-first PWA that encodes images into compact, URL-safe text. Share images via messaging apps on restrictive WiFi — no server needed.">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/style.css">
     <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
     <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="theme-color" content="#121212">
 </head>
+
 <body>
     <div id="app">
         <header>
-            <h1>NanoGlyph</h1>
+            <a href="/" id="home-link"><h1>NanoGlyph</h1></a>
             <p>Offline-first image sharing via URL</p>
         </header>
 
@@ -27,37 +30,90 @@
                 <div id="preview-container" class="hidden">
                     <img id="image-preview" src="" alt="Preview">
                 </div>
-                
+
                 <div id="settings-container" class="hidden">
                     <label for="quality-select">Max Size (Quality):</label>
                     <select id="quality-select">
+                        <option value="32">Tiny (32px)</option>
                         <option value="64">Low (64px)</option>
                         <option value="128" selected>Medium (128px)</option>
                         <option value="192">High (192px)</option>
+                        <option value="256">Extreme (256px)</option>
+                        <option value="512">Maximum (512px)</option>
                     </select>
                 </div>
-                
+
+                <div id="palette-container" class="hidden">
+                    <div class="palette-selector">
+                        <div class="palette-header">
+                            <label>Color Palette:</label>
+                            <span class="palette-id-display" id="palette-id-display">Auto-detect</span>
+                        </div>
+                        <div class="palette-swatches active" id="palette-swatches"></div>
+                        <div class="palette-nav">
+                            <button type="button" id="palette-prev">◀</button>
+                            <span class="palette-mode-label" id="palette-mode-label">Auto — best match</span>
+                            <button type="button" id="palette-next">▶</button>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="platform-container" class="hidden">
+                    <label>Share via:</label>
+                    <div class="platform-grid" id="platform-grid">
+                        <button class="platform-btn selected" data-platform="whatsapp" data-limit="65536" type="button">
+                            <img src="/icons/whatsapp.svg" alt="WhatsApp" class="platform-icon">
+                            <span class="platform-name">WhatsApp</span>
+                            <span class="platform-limit">65K chars</span>
+                        </button>
+                        <button class="platform-btn" data-platform="telegram" data-limit="4096" type="button">
+                            <img src="/icons/telegram.svg" alt="Telegram" class="platform-icon">
+                            <span class="platform-name">Telegram</span>
+                            <span class="platform-limit">4K chars</span>
+                        </button>
+                        <button class="platform-btn" data-platform="messenger" data-limit="2000" type="button">
+                            <img src="/icons/messenger.svg" alt="Messenger" class="platform-icon">
+                            <span class="platform-name">Messenger</span>
+                            <span class="platform-limit">2K chars</span>
+                        </button>
+                        <button class="platform-btn" data-platform="instagram" data-limit="1000" type="button">
+                            <img src="/icons/instagram.svg" alt="Instagram" class="platform-icon">
+                            <span class="platform-name">Instagram</span>
+                            <span class="platform-limit">1K chars</span>
+                        </button>
+                    </div>
+                </div>
+
                 <button id="encode-btn" class="btn primary" disabled>Generate Magic Link</button>
             </div>
 
             <div id="result-container" class="card hidden">
                 <h3>Magic Link Ready!</h3>
                 <div class="url-box" id="url-box"></div>
+                <div id="chunk-buttons"></div>
                 <button id="share-btn" class="btn secondary">Share Link</button>
                 <button id="copy-btn" class="btn outline">Copy Link</button>
             </div>
         </main>
 
         <main id="decoder-view" class="hidden">
+            <div id="decoded-container">
+                <canvas id="decoded-canvas"></canvas>
+            </div>
             <div class="card">
-                <h2>Received Image</h2>
-                <div id="decoded-container">
-                    <canvas id="decoded-canvas"></canvas>
-                </div>
                 <p id="decoder-status">Decoding...</p>
                 <button id="reset-btn" class="btn outline">Create Your Own</button>
             </div>
         </main>
+
+        <footer>
+            <a href="https://github.com/GHagui/NanoGlyph-Share" target="_blank" rel="noopener" class="footer-github">
+                <img src="/icons/github.svg" alt="GitHub" class="footer-icon"> Source Code
+            </a>
+            <a href="https://ghagui.github.io/Gabriel_Hagui/" target="_blank" rel="noopener" class="footer-credit">
+                ❤️ Made by Gabriel Hagui in Rust
+            </a>
+        </footer>
     </div>
 
     <!-- Load Wasm module -->
@@ -69,4 +125,5 @@
         }
     </script>
 </body>
+
 </html>

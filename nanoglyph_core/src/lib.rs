@@ -7,7 +7,47 @@ use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
 pub fn encode_image_to_base62(img_data: &[u8], max_dimension: u32) -> Result<String, JsValue> {
-    encoder::encode_image(img_data, max_dimension).map_err(|e| JsValue::from_str(&e))
+    encoder::encode_image(img_data, max_dimension, None).map_err(|e| JsValue::from_str(&e))
+}
+
+#[wasm_bindgen]
+pub fn encode_image_to_base62_with_palette(img_data: &[u8], max_dimension: u32, palette_id: u8) -> Result<String, JsValue> {
+    encoder::encode_image(img_data, max_dimension, Some(palette_id)).map_err(|e| JsValue::from_str(&e))
+}
+
+/// Returns a flat array of 24 bytes (8 colors × 3 RGB bytes) for the given palette ID (0-98)
+#[wasm_bindgen]
+pub fn get_palette_colors(palette_id: u8) -> Vec<u8> {
+    let pal = palette::get_palette(palette_id);
+    let mut flat = Vec::with_capacity(24);
+    for c in &pal {
+        flat.push(c[0]);
+        flat.push(c[1]);
+        flat.push(c[2]);
+    }
+    flat
+}
+
+#[wasm_bindgen]
+pub struct PreviewImage {
+    pub width: u32,
+    pub height: u32,
+    rgba: Vec<u8>,
+}
+
+#[wasm_bindgen]
+impl PreviewImage {
+    pub fn get_rgba(&self) -> Vec<u8> {
+        self.rgba.clone()
+    }
+}
+
+/// Fast preview: resize + dither with a specific palette, returns RGBA for canvas rendering
+#[wasm_bindgen]
+pub fn preview_image_with_palette(img_data: &[u8], max_dimension: u32, palette_id: u8) -> Result<PreviewImage, JsValue> {
+    encoder::preview_with_palette(img_data, max_dimension, palette_id)
+        .map(|(width, height, rgba)| PreviewImage { width, height, rgba })
+        .map_err(|e| JsValue::from_str(&e))
 }
 
 #[wasm_bindgen]

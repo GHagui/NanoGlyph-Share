@@ -17,7 +17,7 @@ const BAYER_4X4: [[u8; 4]; 4] = [
     [60, 28, 52, 20],
 ];
 
-pub fn encode_image(img_data: &[u8], max_dimension: u32) -> Result<String, String> {
+pub fn encode_image(img_data: &[u8], max_dimension: u32, forced_palette_id: Option<u8>) -> Result<String, String> {
     let mut frames = Vec::new();
     
     // Try to load as GIF animation first
@@ -58,8 +58,11 @@ pub fn encode_image(img_data: &[u8], max_dimension: u32) -> Result<String, Strin
         resized_frames.push(resized);
     }
     
-    // 2. Select best palette (based on first frame)
-    let best_palette_id = find_best_palette(&resized_frames[0]);
+    // 2. Select palette (forced or auto-detect)
+    let best_palette_id = match forced_palette_id {
+        Some(id) if id < 99 => id,
+        _ => find_best_palette(&resized_frames[0]),
+    };
     let palette = get_palette(best_palette_id);
     
     // 3. Quantize all frames
@@ -203,6 +206,37 @@ fn quantize_with_dither(img: &RgbaImage, palette: &[[u8; 3]; 8]) -> Vec<u8> {
     }
     
     indices
+}
+
+/// Fast preview: resize + dither with a given palette → returns (width, height, rgba)
+pub fn preview_with_palette(img_data: &[u8], max_dimension: u32, palette_id: u8) -> Result<(u32, u32, Vec<u8>), String> {
+    let img = image::load_from_memory(img_data).map_err(|e| e.to_string())?;
+    let rgba_img = img.to_rgba8();
+    
+    let (width, height) = rgba_img.dimensions();
+    let mut new_w = width;
+    let mut new_h = height;
+    
+    if width > max_dimension || height > max_dimension {
+        let ratio = max_dimension as f32 / width.max(height) as f32;
+        new_w = (width as f32 * ratio).round().max(1.0) as u32;
+        new_h = (height as f32 * ratio).round().max(1.0) as u32;
+    }
+    
+    let resized = image::imageops::resize(&rgba_img, new_w, new_h, image::imageops::FilterType::Triangle);
+    let palette = get_palette(palette_id);
+    let indices = quantize_with_dither(&resized, &palette);
+    
+    let mut out = Vec::with_capacity((new_w * new_h * 4) as usize);
+    for idx in &indices {
+        let c = palette[(*idx & 7) as usize];
+        out.push(c[0]);
+        out.push(c[1]);
+        out.push(c[2]);
+        out.push(255);
+    }
+    
+    Ok((new_w, new_h, out))
 }
 
 pub(crate) fn rle_encode(data: &[u8]) -> Vec<u8> {
