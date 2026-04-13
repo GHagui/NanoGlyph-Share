@@ -7,31 +7,56 @@ use crate::NanoGlyphPayload;
 use crate::pixel_data::unpack_pixels;
 
 pub fn decode_base62_to_rgba(base62_str: &str) -> Result<(u32, u32, u8, Vec<u8>), String> {
+    if base62_str.is_empty() {
+        return Err("Empty payload — did you copy the full link?".to_string());
+    }
+
     // 1. Base62 Decode
-    let compressed_binary = base62_decode(base62_str)?;
-    
+    let compressed_binary = base62_decode(base62_str)
+        .map_err(|e| format!("Invalid URL characters — link may be corrupted or truncated. ({})", e))?;
+
+    if compressed_binary.is_empty() {
+        return Err("Payload decoded to empty data — link appears to be corrupted.".to_string());
+    }
+
     // 2. Deflate Decompress
     let mut decoder = ZlibDecoder::new(&compressed_binary[..]);
     let mut binary = Vec::new();
-    decoder.read_to_end(&mut binary).map_err(|e| e.to_string())?;
-    
+    decoder.read_to_end(&mut binary)
+        .map_err(|_| "Decompression failed — link may be truncated or partially copied. Make sure you received all parts.".to_string())?;
+
     // 3. Deserialize Header and Payload
     let payload = NanoGlyphPayload::from_binary(&binary)
-        .map_err(|_| "Failed to parse payload")?;
-    
+        .map_err(|_| "Header is missing or too short — this does not look like a NanoGlyph link.".to_string())?;
+
     let header = payload.get_header();
+
+    // Sanity-check dimensions
+    if header.width == 0 || header.height == 0 {
+        return Err("Image has zero dimensions — link is likely corrupted.".to_string());
+    }
+    if header.width > 2048 || header.height > 2048 {
+        return Err(format!("Unrealistic image dimensions ({}×{}) — link is likely corrupted.", header.width, header.height));
+    }
+
     let rle_pixels = payload.get_packed_pixels();
-    
+
     // 4. RLE Decode
     let packed_pixels = rle_decode(&rle_pixels);
-    
+
     // 5. Unpack Pixels (3 bits to 8 bits)
     let frame_count = if header.flags.is_animation { header.flags.frame_count.max(1) } else { 1 };
     let num_pixels_per_frame = (header.width as usize) * (header.height as usize);
     let total_pixels = num_pixels_per_frame * (frame_count as usize);
-    
+
     let mut indices = unpack_pixels(&packed_pixels, total_pixels);
-    
+
+    // Guard: if we got fewer pixels than expected, pad with 0 (first palette color)
+    // This is a best-effort render rather than a hard failure
+    if indices.len() < total_pixels {
+        indices.resize(total_pixels, 0);
+    }
+
     // 6. Delta Decoding
     if frame_count > 1 {
         for f in 1..(frame_count as usize) {
@@ -44,20 +69,19 @@ pub fn decode_base62_to_rgba(base62_str: &str) -> Result<(u32, u32, u8, Vec<u8>)
             }
         }
     }
-    
+
     // 7. Map to RGBA
     let palette = get_palette(header.palette_id);
     let mut rgba = Vec::with_capacity(total_pixels * 4);
-    
+
     for idx in indices {
-        // handle out of bounds just in case
-        let c = palette[(idx & 7) as usize];
+        let c = palette[(idx & 7) as usize]; // & 7 guarantees 0-7, never OOB
         rgba.push(c[0]);
         rgba.push(c[1]);
         rgba.push(c[2]);
         rgba.push(255); // Alpha
     }
-    
+
     Ok((header.width as u32, header.height as u32, frame_count, rgba))
 }
 

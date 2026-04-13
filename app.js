@@ -151,12 +151,41 @@ paletteSwatches.addEventListener('dblclick', () => {
     updatePaletteUI();
 });
 
+const qualityWarning = document.getElementById('quality-warning');
+const savePreviewBtn = document.getElementById('save-preview-btn');
+
 // Re-render preview when quality/max-size changes
 qualitySelect.addEventListener('change', () => {
+    const val = parseInt(qualitySelect.value, 10);
+    // Show warning for large sizes
+    if (val >= 256) {
+        qualityWarning.classList.remove('hidden');
+    } else {
+        qualityWarning.classList.add('hidden');
+    }
     if (selectedFileBuffer && wasmInitialized) {
         const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
         renderPalettePreview(effectiveId);
     }
+});
+
+// Save the dithered preview canvas as PNG (without sharing)
+savePreviewBtn.addEventListener('click', () => {
+    const previewCanvas = document.getElementById('palette-preview-canvas');
+    if (!previewCanvas) return;
+    previewCanvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'nanoglyph-preview.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        savePreviewBtn.textContent = '✅ Saved!';
+        setTimeout(() => { savePreviewBtn.textContent = '💾 Save as PNG'; }, 2000);
+    }, 'image/png');
 });
 
 async function bootstrap() {
@@ -469,6 +498,7 @@ encodeBtn.addEventListener('click', () => {
             // Show normal share/copy buttons
             shareBtn.classList.remove('hidden');
             copyBtn.classList.remove('hidden');
+            savePreviewBtn.classList.remove('hidden');
             resultContainer.classList.remove('hidden');
         } else {
             // Payload exceeds limit — split into chunks
@@ -508,7 +538,7 @@ encodeBtn.addEventListener('click', () => {
                 shareChunkBtn.className = 'btn secondary';
                 shareChunkBtn.textContent = `Share Part ${idx + 1}`;
                 shareChunkBtn.addEventListener('click', async () => {
-                    const data = { title: `NanoGlyph Part ${idx+1}/${total}`, text: `Part ${idx+1} of ${total}`, url: chunkUrl };
+                    const data = { title: `NanoGlyph — Part ${idx+1} of ${total}`, url: chunkUrl };
                     if (navigator.share) {
                         try { await navigator.share(data); } catch(e) { console.log(e); }
                     } else {
@@ -535,6 +565,7 @@ encodeBtn.addEventListener('click', () => {
             });
             
             chunkButtons.appendChild(list);
+            savePreviewBtn.classList.remove('hidden');
             resultContainer.classList.remove('hidden');
         }
         
@@ -556,7 +587,6 @@ shareBtn.addEventListener('click', async () => {
     
     const shareData = {
         title: 'NanoGlyph Image',
-        text: 'I shared an offline image with you via NanoGlyph!',
         url: firstUrl
     };
     
@@ -593,6 +623,35 @@ copyBtn.addEventListener('click', () => {
 
 resetBtn.addEventListener('click', () => {
     window.location.hash = '';
+});
+
+// Clear cache & data
+document.getElementById('clear-cache-btn').addEventListener('click', async () => {
+    const confirmed = confirm('Clear all cached data and force a fresh reload?\n\nThis will remove the offline cache and any stored image chunks.');
+    if (!confirmed) return;
+
+    try {
+        // 1. Delete all Cache Storage entries (Service Worker cache)
+        if ('caches' in window) {
+            const cacheNames = await caches.keys();
+            await Promise.all(cacheNames.map(name => caches.delete(name)));
+        }
+
+        // 2. Clear localStorage (chunk fragments)
+        localStorage.clear();
+
+        // 3. Unregister all Service Workers so fresh one installs on reload
+        if ('serviceWorker' in navigator) {
+            const registrations = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(registrations.map(r => r.unregister()));
+        }
+
+        // 4. Hard reload (bypasses browser cache)
+        window.location.reload(true);
+    } catch (e) {
+        console.error('Clear cache failed:', e);
+        alert('Failed to clear cache: ' + e.message);
+    }
 });
 
 // Initialize

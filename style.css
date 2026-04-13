@@ -98,6 +98,23 @@ footer a:hover {
     font-size: 0.75rem;
 }
 
+.footer-clear-btn {
+    background: none;
+    border: none;
+    color: #444;
+    font-size: 0.7rem;
+    cursor: pointer;
+    padding: 0.3rem 0.6rem;
+    border-radius: 6px;
+    transition: color 0.2s, background 0.2s;
+    margin-top: 0.5rem;
+}
+
+.footer-clear-btn:hover {
+    color: #e57373;
+    background: rgba(229, 115, 115, 0.08);
+}
+
 .card {
     background-color: var(--card-bg);
     border-radius: 16px;
@@ -268,6 +285,22 @@ select:focus {
     height: auto;
     display: block;
     border-radius: 8px;
+}
+
+.quality-warning {
+    margin-top: 0.6rem;
+    padding: 0.65rem 0.9rem;
+    border-radius: 8px;
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 3px solid #f5a623;
+    color: #f5c842;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    animation: fadeIn 0.2s ease;
+}
+
+.quality-warning strong {
+    color: #ffd966;
 }
 
 .btn {

@@ -17,7 +17,9 @@
 <body>
     <div id="app">
         <header>
-            <img src="./icons/icon-192.png" alt="NanoGlyph" class="header-icon" height="128" width="128">
+            <a href="./" id="home-link">
+                <img src="./icons/icon-192.png" alt="NanoGlyph" class="header-icon" height="128" width="128">
+            </a>
             <a href="./" id="home-link">
                 <h1>NanoGlyph</h1>
             </a>
@@ -45,6 +47,10 @@
                         <option value="256">Extreme (256px)</option>
                         <option value="512">Maximum (512px)</option>
                     </select>
+                    <div class="quality-warning hidden" id="quality-warning">
+                        ⚠️ <strong>256px and 512px</strong> produce very long URLs that may be truncated or fail to open
+                        in some browsers, messaging apps, or QR code readers. Recommended for local save only.
+                    </div>
                 </div>
 
                 <div id="palette-container" class="hidden">
@@ -97,6 +103,7 @@
                 <div id="chunk-buttons"></div>
                 <button id="share-btn" class="btn secondary">Share Link</button>
                 <button id="copy-btn" class="btn outline">Copy Link</button>
+                <button id="save-preview-btn" class="btn outline hidden">💾 Save as PNG</button>
             </div>
         </main>
 
@@ -118,6 +125,7 @@
             <a href="https://ghagui.github.io/Gabriel_Hagui/" target="_blank" rel="noopener" class="footer-credit">
                 ❤️ Made by Gabriel Hagui in Rust
             </a>
+            <button id="clear-cache-btn" class="footer-clear-btn">🗑️ Clear Cache &amp; Data</button>
         </footer>
     </div>
 
