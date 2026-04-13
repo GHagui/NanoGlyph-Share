@@ -241,7 +241,7 @@ pub fn encode_image(
     Ok(base62_encode(&compressed_binary))
 }
 
-fn compress_zlib(data: &[u8]) -> Result<Vec<u8>, String> {
+pub(crate) fn compress_zlib(data: &[u8]) -> Result<Vec<u8>, String> {
     let mut out = vec![CODEC_ZLIB];
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::best());
     encoder.write_all(data).map_err(|e| e.to_string())?;
@@ -249,7 +249,7 @@ fn compress_zlib(data: &[u8]) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
-fn compress_brotli(data: &[u8]) -> Result<Vec<u8>, String> {
+pub(crate) fn compress_brotli(data: &[u8]) -> Result<Vec<u8>, String> {
     let mut compressed = Vec::new();
     {
         // quality=11 (max), lgwin=22 (max window)
@@ -261,7 +261,7 @@ fn compress_brotli(data: &[u8]) -> Result<Vec<u8>, String> {
     Ok(out)
 }
 
-fn base62_encode(input: &[u8]) -> String {
+pub(crate) fn base62_encode(input: &[u8]) -> String {
     const ALPHABET: &[u8] = b"0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     let mut num = BigUint::from_bytes_be(input);
     let zero = BigUint::from(0u32);
@@ -291,7 +291,7 @@ fn base62_encode(input: &[u8]) -> String {
     result.chars().rev().collect()
 }
 
-fn find_best_palette(img: &RgbaImage) -> u8 {
+pub(crate) fn find_best_palette(img: &RgbaImage) -> u8 {
     let mut best_id = 0;
     let mut min_error = f64::MAX;
     
@@ -323,7 +323,7 @@ fn find_best_palette(img: &RgbaImage) -> u8 {
     best_id
 }
 
-fn quantize_with_dither(img: &RgbaImage, palette: &[[u8; 3]; 8]) -> Vec<u8> {
+pub(crate) fn quantize_with_dither(img: &RgbaImage, palette: &[[u8; 3]; 8]) -> Vec<u8> {
     let mut indices = Vec::with_capacity((img.width() * img.height()) as usize);
     
     for (x, y, pixel) in img.enumerate_pixels() {

@@ -1,4 +1,4 @@
-import init, { encode_image_to_base62, encode_image_to_base62_with_palette, decode_base62_to_image, get_palette_colors, preview_image_with_palette } from './nanoglyph_core/pkg/nanoglyph_core.js';
+import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js';
 
 // Clipboard helper with fallback for non-HTTPS contexts
 function copyToClipboard(text) {
@@ -100,6 +100,15 @@ const chunkButtons = document.getElementById('chunk-buttons');
 const savePngBtn = document.getElementById('save-png-btn');
 
 let selectedFileBuffer = null;
+let imageSession = null;
+
+function initImageSession(buffer) {
+    if (imageSession) {
+        try { imageSession.free(); } catch (e) { }
+    }
+    imageSession = new ImageSession(buffer);
+    selectedFileBuffer = buffer;
+}
 let selectedPlatformLimit = 4096; // default: WhatsApp
 let currentPaletteId = -1; // -1 = auto-detect
 let paletteAutoMode = true;
@@ -175,10 +184,10 @@ function debouncedPreviewUpdate() {
     if (adjDebounceTimer) clearTimeout(adjDebounceTimer);
     adjDebounceTimer = setTimeout(() => {
         if (selectedFileBuffer && wasmInitialized) {
-            const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+            const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
             renderPalettePreview(effectiveId);
         }
-    }, 125);
+    }, 2);
 }
 
 [adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(slider => {
@@ -231,14 +240,22 @@ function renderPaletteSwatches(id) {
 // Real-time palette preview on the image
 // Adjustments are passed as floats directly to Wasm — no JS canvas roundtrip
 function renderPalettePreview(paletteId) {
-    if (!selectedFileBuffer || !wasmInitialized) return;
+    if (!imageSession || !wasmInitialized) return;
     try {
         const maxDim = parseInt(qualitySelect.value, 10);
         const [exp, con, sat, hue, tmp] = getAdjFloats();
-        const preview = preview_image_with_palette(selectedFileBuffer, maxDim, paletteId, exp, con, sat, hue, tmp);
+
+        // Cache layer via imageSession avoids re-decoding JPEG/PNG files per-slider change
+        const preview = imageSession.preview(maxDim, paletteId, exp, con, sat, hue, tmp);
         const rgba = preview.get_rgba();
         const w = preview.width;
         const h = preview.height;
+        const actualPaletteId = preview.palette_id;
+        
+        if (paletteAutoMode) {
+             renderPaletteSwatches(actualPaletteId);
+             paletteIdDisplay.textContent = `Auto (Match #${actualPaletteId})`;
+        }
 
         // Replace the image preview with a canvas showing the dithered result
         let previewCanvas = document.getElementById('palette-preview-canvas');
@@ -266,7 +283,7 @@ function renderPalettePreview(paletteId) {
 }
 
 function updatePaletteUI() {
-    const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+    const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
     if (paletteAutoMode) {
         paletteIdDisplay.textContent = 'Auto-detect';
         paletteModeLabel.textContent = 'Auto — best match';
@@ -279,7 +296,9 @@ function updatePaletteUI() {
         renderPalettePreview(effectiveId);
     }
     paletteSwatches.classList.add('active');
-    renderPaletteSwatches(effectiveId);
+    if (!paletteAutoMode) {
+        renderPaletteSwatches(effectiveId);
+    }
 }
 
 palettePrevBtn.addEventListener('click', () => {
@@ -327,7 +346,7 @@ qualitySelect.addEventListener('change', () => {
     }
 
     if (selectedFileBuffer && wasmInitialized) {
-        const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+        const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
         renderPalettePreview(effectiveId);
     }
 });
@@ -586,9 +605,9 @@ function handleFile(file) {
     if (needsConversion) {
         // HEIF/HEIC: convert via canvas to PNG buffer
         convertToPngBuffer(file).then(pngBuffer => {
-            selectedFileBuffer = pngBuffer;
+            initImageSession(pngBuffer);
             if (wasmInitialized) {
-                const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+                const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
                 renderPalettePreview(effectiveId);
             }
         }).catch(err => {
@@ -598,9 +617,9 @@ function handleFile(file) {
         // Standard format: read directly
         const arrayBufferReader = new FileReader();
         arrayBufferReader.onload = (e) => {
-            selectedFileBuffer = new Uint8Array(e.target.result);
+            initImageSession(new Uint8Array(e.target.result));
             if (wasmInitialized) {
-                const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+                const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
                 renderPalettePreview(effectiveId);
             }
         };
@@ -617,7 +636,7 @@ function getChunkLimit() {
 
 // Encoding Logic
 encodeBtn.addEventListener('click', () => {
-    if (!selectedFileBuffer) return;
+    if (!imageSession) return;
 
     try {
         encodeBtn.disabled = true;
@@ -631,8 +650,8 @@ encodeBtn.addEventListener('click', () => {
 
         // Encode directly with Wasm, passing the adjustment values
         const base62Str = paletteAutoMode
-            ? encode_image_to_base62(selectedFileBuffer, maxDimension, useBrotli, exp, con, sat, hue, tmp)
-            : encode_image_to_base62_with_palette(selectedFileBuffer, maxDimension, currentPaletteId, useBrotli, exp, con, sat, hue, tmp);
+            ? imageSession.encode_auto(maxDimension, useBrotli, exp, con, sat, hue, tmp)
+            : imageSession.encode_with_palette(maxDimension, currentPaletteId, useBrotli, exp, con, sat, hue, tmp);
 
         const baseUrl = window.location.origin + window.location.pathname;
         const platformLimit = Math.min(getChunkLimit(), BROWSER_URL_MAX);
