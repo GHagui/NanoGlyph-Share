@@ -22,6 +22,42 @@ function copyToClipboard(text) {
     }
 }
 
+// Save a canvas as a PNG, upscaling it dynamically to ~2560px horizontal using nearest-neighbor
+function saveCanvasAsUpscaledPng(sourceCanvas, filename, successCallback) {
+    if (!sourceCanvas) return;
+    
+    // Target 2560px width, but ensure scale is an integer to keep pixels perfectly square
+    const TARGET_WIDTH = 2560;
+    const scale = Math.max(1, Math.round(TARGET_WIDTH / sourceCanvas.width));
+    
+    const exportCanvas = document.createElement('canvas');
+    exportCanvas.width = sourceCanvas.width * scale;
+    exportCanvas.height = sourceCanvas.height * scale;
+    
+    const ctx = exportCanvas.getContext('2d');
+    
+    // Disable anti-aliasing to keep pixel art looking crisp
+    ctx.imageSmoothingEnabled = false;
+    ctx.mozImageSmoothingEnabled = false;
+    ctx.webkitImageSmoothingEnabled = false;
+    ctx.msImageSmoothingEnabled = false;
+    
+    ctx.drawImage(sourceCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
+
+    exportCanvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        if (successCallback) successCallback();
+    }, 'image/png');
+}
+
 let wasmInitialized = false;
 
 // DOM Elements
@@ -153,18 +189,29 @@ paletteSwatches.addEventListener('dblclick', () => {
     updatePaletteUI();
 });
 
-const qualityWarning = document.getElementById('quality-warning');
+const warningHigh = document.getElementById('warning-high');
+const warningZen = document.getElementById('warning-zen');
+const warningCosmic = document.getElementById('warning-cosmic');
 const savePreviewBtn = document.getElementById('save-preview-btn');
 
 // Re-render preview when quality/max-size changes
 qualitySelect.addEventListener('change', () => {
     const val = parseInt(qualitySelect.value, 10);
-    // Show warning for large sizes
-    if (val >= 256) {
-        qualityWarning.classList.remove('hidden');
-    } else {
-        qualityWarning.classList.add('hidden');
+    
+    // Hide all warnings by default
+    if (warningHigh) warningHigh.classList.add('hidden');
+    if (warningZen) warningZen.classList.add('hidden');
+    if (warningCosmic) warningCosmic.classList.add('hidden');
+    
+    // Show appropriate warning
+    if (val === 2048) {
+        if (warningCosmic) warningCosmic.classList.remove('hidden');
+    } else if (val === 1024) {
+        if (warningZen) warningZen.classList.remove('hidden');
+    } else if (val >= 256) {
+        if (warningHigh) warningHigh.classList.remove('hidden');
     }
+    
     if (selectedFileBuffer && wasmInitialized) {
         const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
         renderPalettePreview(effectiveId);
@@ -174,20 +221,10 @@ qualitySelect.addEventListener('change', () => {
 // Save the dithered preview canvas as PNG (without sharing)
 savePreviewBtn.addEventListener('click', () => {
     const previewCanvas = document.getElementById('palette-preview-canvas');
-    if (!previewCanvas) return;
-    previewCanvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'nanoglyph-preview.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    saveCanvasAsUpscaledPng(previewCanvas, 'nanoglyph-preview.png', () => {
         savePreviewBtn.textContent = '✅ Saved!';
         setTimeout(() => { savePreviewBtn.textContent = '💾 Save as PNG'; }, 2000);
-    }, 'image/png');
+    });
 });
 
 async function bootstrap() {
@@ -337,19 +374,10 @@ function decodeAndRender(base62Str) {
 
 // Save decoded image as PNG
 savePngBtn.addEventListener('click', () => {
-    decodedCanvas.toBlob((blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'nanoglyph-image.png';
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
+    saveCanvasAsUpscaledPng(decodedCanvas, 'nanoglyph-image.png', () => {
         savePngBtn.textContent = '✅ Saved!';
         setTimeout(() => { savePngBtn.textContent = '💾 Save as PNG'; }, 2000);
-    }, 'image/png');
+    });
 });
 
 window.addEventListener('hashchange', checkHash);
@@ -431,6 +459,7 @@ function handleFile(file) {
         platformContainer.classList.remove('hidden');
         paletteContainer.classList.remove('hidden');
         dropZone.classList.add('hidden');
+        savePreviewBtn.classList.remove('hidden');
         encodeBtn.disabled = !wasmInitialized;
         if (wasmInitialized) {
             updatePaletteUI();
@@ -502,7 +531,6 @@ encodeBtn.addEventListener('click', () => {
             // Show normal share/copy buttons
             shareBtn.classList.remove('hidden');
             copyBtn.classList.remove('hidden');
-            savePreviewBtn.classList.remove('hidden');
             resultContainer.classList.remove('hidden');
         } else {
             // Payload exceeds limit — split into chunks
@@ -569,7 +597,6 @@ encodeBtn.addEventListener('click', () => {
             });
 
             chunkButtons.appendChild(list);
-            savePreviewBtn.classList.remove('hidden');
             resultContainer.classList.remove('hidden');
         }
 

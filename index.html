@@ -46,10 +46,17 @@
                         <option value="192">High (192px)</option>
                         <option value="256">Extreme (256px)</option>
                         <option value="512">Maximum (512px)</option>
+                        <option value="1024">Zen (1024px)</option>
+                        <option value="2048">Cosmic (2048px)</option>
                     </select>
-                    <div class="quality-warning hidden" id="quality-warning">
-                        ⚠️ <strong>256px and 512px</strong> produce very long URLs that may be truncated or fail to open
-                        in some browsers, messaging apps, or QR code readers. Recommended for local save only.
+                    <div class="message-box warning hidden" id="warning-high">
+                        ⚠️ <strong>256px and 512px</strong> produce very long URLs that may be truncated or fail to open. Recommended for local save only.
+                    </div>
+                    <div class="message-box danger hidden" id="warning-zen">
+                        🛑 <strong>Danger (Zen Mode):</strong> 1024px will completely freeze your device for several seconds while calculating millions of pixels. At least you are Zen enough to wait patiently. 🙏
+                    </div>
+                    <div class="message-box fatal hidden" id="warning-cosmic">
+                        💀 <strong>COSMIC MADNESS:</strong> 2048px is the physical limit of this engine's universe. Generate only if you are willing to sacrifice your CPU/RAM to the cosmic void. Your browser WILL suffer. 🌌
                     </div>
                 </div>
 
@@ -102,7 +109,8 @@
                     </div>
                 </div>
 
-                <button id="encode-btn" class="btn primary" disabled>Generate Magic Link</button>
+                <button id="encode-btn" class="btn primary" disabled>✨ Generate Magic Link</button>
+                <button id="save-preview-btn" class="btn outline hidden">💾 Save as PNG</button>
             </div>
 
             <div id="result-container" class="card hidden">
@@ -111,7 +119,6 @@
                 <div id="chunk-buttons"></div>
                 <button id="share-btn" class="btn secondary">Share Link</button>
                 <button id="copy-btn" class="btn outline">Copy Link</button>
-                <button id="save-preview-btn" class="btn outline hidden">💾 Save as PNG</button>
             </div>
         </main>
 

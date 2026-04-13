@@ -287,20 +287,46 @@ select:focus {
     border-radius: 8px;
 }
 
-.quality-warning {
+.message-box {
     margin-top: 0.6rem;
     padding: 0.65rem 0.9rem;
     border-radius: 8px;
-    background-color: rgba(255, 193, 7, 0.1);
-    border-left: 3px solid #f5a623;
-    color: #f5c842;
     font-size: 0.82rem;
     line-height: 1.5;
     animation: fadeIn 0.2s ease;
 }
 
-.quality-warning strong {
+.message-box.warning {
+    background-color: rgba(255, 193, 7, 0.1);
+    border-left: 3px solid #f5a623;
+    color: #f5c842;
+}
+
+.message-box.warning strong {
     color: #ffd966;
+}
+
+.message-box.danger {
+    background-color: rgba(244, 67, 54, 0.1);
+    border-left: 3px solid #f44336;
+    color: #ff8a80;
+}
+
+.message-box.danger strong {
+    color: #ff5252;
+}
+
+.message-box.fatal {
+    background-color: rgba(0, 0, 0, 0.4);
+    border-left: 3px solid #9c27b0;
+    border-right: 1px solid #4a148c;
+    border-top: 1px solid #4a148c;
+    border-bottom: 1px solid #4a148c;
+    color: #ce93d8;
+}
+
+.message-box.fatal strong {
+    color: #e1bee7;
 }
 
 .btn {

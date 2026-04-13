@@ -1,4 +1,4 @@
-const CACHE_NAME = 'nanoglyph-v4';
+const CACHE_NAME = 'nanoglyph-v5';
 const ASSETS = [
     './',
     './index.html',
