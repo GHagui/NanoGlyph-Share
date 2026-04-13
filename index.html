@@ -17,7 +17,10 @@
 <body>
     <div id="app">
         <header>
-            <a href="./" id="home-link"><h1>NanoGlyph</h1></a>
+            <img src="./icons/icon-192.png" alt="NanoGlyph" class="header-icon" height="128" width="128">
+            <a href="./" id="home-link">
+                <h1>NanoGlyph</h1>
+            </a>
             <p>Offline-first image sharing via URL</p>
         </header>
 
@@ -25,7 +28,8 @@
             <div class="card">
                 <div class="drop-zone" id="drop-zone">
                     <p>Tap or drop an image here</p>
-                    <input type="file" id="file-input" accept="image/*,.heif,.heic,image/heif,image/heic" style="display: none;">
+                    <input type="file" id="file-input" accept="image/*,.heif,.heic,image/heif,image/heic"
+                        style="display: none;">
                 </div>
                 <div id="preview-container" class="hidden">
                     <img id="image-preview" src="" alt="Preview">

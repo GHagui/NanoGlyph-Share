@@ -1,10 +1,17 @@
-# 🔮 NanoGlyph — Share Images Without Internet
+<div style="display: flex; justify-content: center; align-items: center; flex-direction: column;">
+<img src="./icons/icon-192.png" alt="NanoGlyph">
+<h1>🔮 NanoGlyph — Share Images Without Internet</h1>
+<br>
+<br>
+</div>
 
-> **What if you could share photos using just a URL — no server, no cloud, no internet required?**
+> [!NOTE]  
+> What if you could share photos using just a URL — no server, no cloud, no internet required?
 
 NanoGlyph is an offline-first Progressive Web App (PWA) that encodes images into compact, URL-safe text. Share images via messaging apps on restrictive WiFi networks, air-gapped environments, or anywhere traditional image sharing fails.
 
-**[🚀 Try it Live](https://ghagui.github.io/NanoGlyph-Share/)**
+> [!TIP]
+> **[🚀 Try it Live](https://ghagui.github.io/NanoGlyph-Share/)**
 
 ---
 
@@ -38,26 +45,44 @@ The entire image lives in the link. Send it via WhatsApp, Telegram, SMS, email �
 
 ## 🔧 How It Works
 
-```
-┌──────────┐    ┌───────────┐    ┌──────────┐    ┌──────────┐
-│  Image   │───▶│  Resize   │───▶│ Quantize │───▶│  Pack    │
-│ (Upload) │    │ + Dither  │    │ 8-Color  │    │ 3-bit/px │
-└──────────┘    └───────────┘    └──────────┘    └──────────┘
-                                                       │
-┌──────────┐    ┌───────────┐    ┌──────────┐          ▼
-│  Share   │◀───│  Base62   │◀───│  Deflate │◀───┌──────────┐
-│  (URL)   │    │  Encode   │    │ Compress │    │   RLE    │
-└──────────┘    └───────────┘    └──────────┘    └──────────┘
+### Encoding Pipeline
+
+```mermaid
+flowchart LR
+    A["🖼️ Image\n(Upload)"] --> B["📐 Resize\n32–512px"]
+    B --> C["🎨 Palette\nSelection\n8 colors"]
+    C --> D["✦ Bayer\nDithering"]
+    D --> E["📦 Pack\n3-bit/px"]
+    E --> F["🗜️ RLE\nEncode"]
+    F --> G["💨 Deflate\nCompress"]
+    G --> H["🔤 Base62\nEncode"]
+    H --> I["🔗 URL\nFragment #..."]
 ```
 
-1. **Resize** — Scale to target dimension (32-512px) preserving aspect ratio
-2. **Dither** — Bayer ordered dithering with selected 8-color palette
-3. **Pack** — 3 bits per pixel (8 colors = 3 bits)
-4. **RLE** — Run-length encoding for repeated patterns
-5. **Deflate** — Zlib compression for remaining entropy
-6. **Base62** — URL-safe encoding (A-Za-z0-9)
+### Decoding Pipeline
 
-The result is a URL like:
+```mermaid
+flowchart LR
+    A["🔗 URL\nFragment #..."] --> B["🔤 Base62\nDecode"]
+    B --> C["💨 Deflate\nDecompress"]
+    C --> D["🗜️ RLE\nDecode"]
+    D --> E["📦 Unpack\n3-bit/px"]
+    E --> F["🎨 Palette\nLookup"]
+    F --> G["🖼️ Canvas\nRender"]
+    G --> H["💾 Save\nas PNG"]
+```
+
+**Step by step:**
+
+1. **Resize** — Scale to target dimension (32–512px) preserving aspect ratio
+2. **Palette** — Auto-detect or manually select one of 99 palettes (8 colors each)
+3. **Dither** — Bayer ordered dithering for smooth color transitions
+4. **Pack** — 3 bits per pixel (8 colors = 3 bits, 62% size reduction vs 8-bit)
+5. **RLE** — Run-length encoding for repeated color runs
+6. **Deflate** — Zlib compression for remaining entropy
+7. **Base62** — URL-safe encoding using `A-Za-z0-9` only
+
+The result is a self-contained URL like:
 ```
 https://ghagui.github.io/NanoGlyph-Share/#2s54FcFnAlWr...
 ```
