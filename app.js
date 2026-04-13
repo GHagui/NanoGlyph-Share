@@ -25,23 +25,23 @@ function copyToClipboard(text) {
 // Save a canvas as a PNG, upscaling it dynamically to ~2560px horizontal using nearest-neighbor
 function saveCanvasAsUpscaledPng(sourceCanvas, filename, successCallback) {
     if (!sourceCanvas) return;
-    
+
     // Target 2560px width, but ensure scale is an integer to keep pixels perfectly square
     const TARGET_WIDTH = 2560;
     const scale = Math.max(1, Math.round(TARGET_WIDTH / sourceCanvas.width));
-    
+
     const exportCanvas = document.createElement('canvas');
     exportCanvas.width = sourceCanvas.width * scale;
     exportCanvas.height = sourceCanvas.height * scale;
-    
+
     const ctx = exportCanvas.getContext('2d');
-    
+
     // Disable anti-aliasing to keep pixel art looking crisp
     ctx.imageSmoothingEnabled = false;
     ctx.mozImageSmoothingEnabled = false;
     ctx.webkitImageSmoothingEnabled = false;
     ctx.msImageSmoothingEnabled = false;
-    
+
     ctx.drawImage(sourceCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
 
     exportCanvas.toBlob((blob) => {
@@ -197,12 +197,12 @@ const savePreviewBtn = document.getElementById('save-preview-btn');
 // Re-render preview when quality/max-size changes
 qualitySelect.addEventListener('change', () => {
     const val = parseInt(qualitySelect.value, 10);
-    
+
     // Hide all warnings by default
     if (warningHigh) warningHigh.classList.add('hidden');
     if (warningZen) warningZen.classList.add('hidden');
     if (warningCosmic) warningCosmic.classList.add('hidden');
-    
+
     // Show appropriate warning
     if (val === 2048) {
         if (warningCosmic) warningCosmic.classList.remove('hidden');
@@ -211,7 +211,7 @@ qualitySelect.addEventListener('change', () => {
     } else if (val >= 256) {
         if (warningHigh) warningHigh.classList.remove('hidden');
     }
-    
+
     if (selectedFileBuffer && wasmInitialized) {
         const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
         renderPalettePreview(effectiveId);
@@ -570,7 +570,7 @@ encodeBtn.addEventListener('click', () => {
                 shareChunkBtn.className = 'btn secondary';
                 shareChunkBtn.textContent = `Share Part ${idx + 1}`;
                 shareChunkBtn.addEventListener('click', async () => {
-                    const data = { title: `NanoGlyph — Part ${idx + 1} of ${total}`, url: chunkUrl };
+                    const data = { title: ``, url: chunkUrl };
                     if (navigator.share) {
                         try { await navigator.share(data); } catch (e) { console.log(e); }
                     } else {
