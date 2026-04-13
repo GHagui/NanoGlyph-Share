@@ -105,14 +105,14 @@ impl Flags {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct NanoGlyphHeader {
     pub version: u8,
-    pub width: u8,
-    pub height: u8,
+    pub width: u16,
+    pub height: u16,
     pub palette_id: u8,
     pub flags: Flags,
 }
 
 impl NanoGlyphHeader {
-    pub fn new(width: u8, height: u8, palette_id: u8, is_animation: bool, frame_count: u8) -> Self {
+    pub fn new(width: u16, height: u16, palette_id: u8, is_animation: bool, frame_count: u8) -> Self {
         Self {
             version: 1,
             width,
@@ -125,23 +125,27 @@ impl NanoGlyphHeader {
         }
     }
 
-    pub fn to_bytes(&self) -> [u8; 5] {
+    pub fn to_bytes(&self) -> [u8; 7] {
+        let w = self.width.to_le_bytes();
+        let h = self.height.to_le_bytes();
         [
             self.version,
-            self.width,
-            self.height,
+            w[0], w[1],
+            h[0], h[1],
             self.palette_id,
             self.flags.to_u8(),
         ]
     }
 
-    pub fn from_bytes(bytes: &[u8; 5]) -> Self {
+    pub fn from_bytes(bytes: &[u8; 7]) -> Self {
+        let width = u16::from_le_bytes([bytes[1], bytes[2]]);
+        let height = u16::from_le_bytes([bytes[3], bytes[4]]);
         Self {
             version: bytes[0],
-            width: bytes[1],
-            height: bytes[2],
-            palette_id: bytes[3],
-            flags: Flags::from_u8(bytes[4]),
+            width,
+            height,
+            palette_id: bytes[5],
+            flags: Flags::from_u8(bytes[6]),
         }
     }
 }
@@ -160,20 +164,20 @@ impl NanoGlyphPayload {
     }
 
     pub fn to_binary(&self) -> Vec<u8> {
-        let mut binary = Vec::with_capacity(5 + self.packed_pixels.len());
+        let mut binary = Vec::with_capacity(7 + self.packed_pixels.len());
         binary.extend_from_slice(&self.header.to_bytes());
         binary.extend_from_slice(&self.packed_pixels);
         binary
     }
 
     pub fn from_binary(binary: &[u8]) -> Result<NanoGlyphPayload, JsValue> {
-        if binary.len() < 5 {
+        if binary.len() < 7 {
             return Err(JsValue::from_str("Payload too short for header"));
         }
-        let mut header_bytes = [0u8; 5];
-        header_bytes.copy_from_slice(&binary[0..5]);
+        let mut header_bytes = [0u8; 7];
+        header_bytes.copy_from_slice(&binary[0..7]);
         let header = NanoGlyphHeader::from_bytes(&header_bytes);
-        let packed_pixels = binary[5..].to_vec();
+        let packed_pixels = binary[7..].to_vec();
         
         Ok(Self {
             header,
@@ -214,7 +218,7 @@ mod tests {
     fn test_header_serialization() {
         let header = NanoGlyphHeader::new(128, 128, 42, false, 0);
         let bytes = header.to_bytes();
-        assert_eq!(bytes, [1, 128, 128, 42, 0]);
+        assert_eq!(bytes, [1, 128, 0, 128, 0, 42, 0]);
 
         let parsed = NanoGlyphHeader::from_bytes(&bytes);
         assert_eq!(parsed, header);
@@ -225,9 +229,19 @@ mod tests {
         let header = NanoGlyphHeader::new(64, 64, 98, true, 3);
         let bytes = header.to_bytes();
         // flags: is_animation (1) | (3 << 1) (6) = 7
-        assert_eq!(bytes, [1, 64, 64, 98, 7]);
+        assert_eq!(bytes, [1, 64, 0, 64, 0, 98, 7]);
 
         let parsed = NanoGlyphHeader::from_bytes(&bytes);
+        assert_eq!(parsed, header);
+    }
+
+    #[test]
+    fn test_header_serialization_large() {
+        let header = NanoGlyphHeader::new(512, 384, 5, false, 0);
+        let bytes = header.to_bytes();
+        let parsed = NanoGlyphHeader::from_bytes(&bytes);
+        assert_eq!(parsed.width, 512);
+        assert_eq!(parsed.height, 384);
         assert_eq!(parsed, header);
     }
 }

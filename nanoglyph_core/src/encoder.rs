@@ -91,7 +91,7 @@ pub fn encode_image(img_data: &[u8], max_dimension: u32, forced_palette_id: Opti
     let packed_pixels = pack_pixels(&all_indices);
     
     // 5. Create payload and compress
-    let header = NanoGlyphHeader::new(new_w as u8, new_h as u8, best_palette_id, is_animation, frame_count);
+    let header = NanoGlyphHeader::new(new_w as u16, new_h as u16, best_palette_id, is_animation, frame_count);
     
     // Apply RLE to pixel data before deflation
     let rle_pixels = rle_encode(&packed_pixels);

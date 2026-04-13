@@ -2,6 +2,9 @@
 name = "nanoglyph_core"
 version = "0.1.0"
 edition = "2021"
+description = "Offline-first image encoder/decoder for NanoGlyph — share images via URL using WebAssembly"
+repository = "https://github.com/GHagui/NanoGlyph-Share"
+license = "MIT"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

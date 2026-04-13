@@ -50,6 +50,7 @@ const paletteModeLabel = document.getElementById('palette-mode-label');
 const palettePrevBtn = document.getElementById('palette-prev');
 const paletteNextBtn = document.getElementById('palette-next');
 const chunkButtons = document.getElementById('chunk-buttons');
+const savePngBtn = document.getElementById('save-png-btn');
 
 let selectedFileBuffer = null;
 let selectedPlatformLimit = 65536; // default: WhatsApp
@@ -152,8 +153,9 @@ paletteSwatches.addEventListener('dblclick', () => {
 
 // Re-render preview when quality/max-size changes
 qualitySelect.addEventListener('change', () => {
-    if (!paletteAutoMode && selectedFileBuffer && wasmInitialized) {
-        renderPalettePreview(currentPaletteId);
+    if (selectedFileBuffer && wasmInitialized) {
+        const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+        renderPalettePreview(effectiveId);
     }
 });
 
@@ -177,6 +179,15 @@ async function bootstrap() {
 
 function checkHash() {
     if (window.location.hash.length > 1) {
+        const hash = window.location.hash.substring(1);
+        
+        // Skip empty or slash-only hashes
+        if (!hash || hash === '/' || hash.length < 2) {
+            encoderView.classList.remove('hidden');
+            decoderView.classList.add('hidden');
+            return;
+        }
+        
         encoderView.classList.add('hidden');
         decoderView.classList.remove('hidden');
         
@@ -184,8 +195,6 @@ function checkHash() {
             decoderStatus.textContent = "Loading decoder...";
             return;
         }
-        
-        const hash = window.location.hash.substring(1);
         
         // Handle chunked links: format is /<index>-<total>/<chunk_data>
         if (hash.startsWith('/')) {
@@ -197,6 +206,11 @@ function checkHash() {
                     const index = parseInt(meta[0]);
                     const total = parseInt(meta[1]);
                     const chunkData = withoutLeadingSlash.substring(slashIdx + 1);
+                    
+                    if (isNaN(index) || isNaN(total) || !chunkData) {
+                        decoderStatus.textContent = "Invalid link format.";
+                        return;
+                    }
                     
                     localStorage.setItem(`ng_chunk_${index}_${total}`, chunkData);
                     
@@ -218,7 +232,6 @@ function checkHash() {
                         return;
                     } else {
                         decoderStatus.textContent = "All parts received! Decoding...";
-                        // Clean up
                         for (let i = 1; i <= total; i++) {
                             localStorage.removeItem(`ng_chunk_${i}_${total}`);
                         }
@@ -247,6 +260,13 @@ function decodeAndRender(base62Str) {
         const height = decoded.height;
         const frameCount = decoded.frame_count;
         
+        if (!width || !height || width === 0 || height === 0) {
+            decoded.free();
+            decoderStatus.textContent = "Invalid image data (zero dimensions).";
+            decoderStatus.classList.remove('hidden');
+            return;
+        }
+        
         decodedCanvas.width = width;
         decodedCanvas.height = height;
         decodedCanvas.classList.remove('hidden');
@@ -268,20 +288,38 @@ function decodeAndRender(base62Str) {
                 currentFrame = (currentFrame + 1) % frameCount;
             };
             drawFrame();
-            window.animationInterval = setInterval(drawFrame, 200); // 5 FPS
+            window.animationInterval = setInterval(drawFrame, 200);
         } else {
             const imageData = new ImageData(new Uint8ClampedArray(rgba), width, height);
             ctx.putImageData(imageData, 0, 0);
         }
         
         decoderStatus.classList.add('hidden');
-        decoded.free(); // Free memory
+        savePngBtn.classList.remove('hidden');
+        decoded.free();
     } catch(e) {
         console.error("Failed to decode:", e);
         decoderStatus.textContent = "Failed to decode image: " + e;
         decoderStatus.classList.remove('hidden');
     }
 }
+
+// Save decoded image as PNG
+savePngBtn.addEventListener('click', () => {
+    decodedCanvas.toBlob((blob) => {
+        if (!blob) return;
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'nanoglyph-image.png';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        savePngBtn.textContent = '✅ Saved!';
+        setTimeout(() => { savePngBtn.textContent = '💾 Save as PNG'; }, 2000);
+    }, 'image/png');
+});
 
 window.addEventListener('hashchange', checkHash);
 
@@ -311,28 +349,50 @@ fileInput.addEventListener('change', (e) => {
     }
 });
 
+// Check if file is HEIF/HEIC format (not supported by Rust image crate)
+function isHeifFormat(file) {
+    const type = file.type.toLowerCase();
+    const name = file.name.toLowerCase();
+    return type === 'image/heif' || type === 'image/heic' || 
+           name.endsWith('.heif') || name.endsWith('.heic');
+}
+
+// Convert image file to PNG via canvas (for formats Wasm can't decode directly)
+function convertToPngBuffer(file) {
+    return new Promise((resolve, reject) => {
+        const url = URL.createObjectURL(file);
+        const img = new Image();
+        img.onload = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = img.naturalWidth;
+            canvas.height = img.naturalHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0);
+            URL.revokeObjectURL(url);
+            canvas.toBlob((blob) => {
+                if (!blob) { reject(new Error('Canvas conversion failed')); return; }
+                blob.arrayBuffer().then(buf => resolve(new Uint8Array(buf)));
+            }, 'image/png');
+        };
+        img.onerror = () => {
+            URL.revokeObjectURL(url);
+            reject(new Error('Browser cannot decode this image format. Try converting to JPEG/PNG first.'));
+        };
+        img.src = url;
+    });
+}
+
 function handleFile(file) {
-    if (!file.type.startsWith('image/')) {
+    if (!file.type.startsWith('image/') && !isHeifFormat(file)) {
         alert("Please select an image file.");
         return;
     }
 
-    // Read array buffer (needed for Wasm preview)
-    const arrayBufferReader = new FileReader();
-    arrayBufferReader.onload = (e) => {
-        selectedFileBuffer = new Uint8Array(e.target.result);
-        // Trigger real-time preview immediately on upload
-        if (wasmInitialized && !paletteAutoMode) {
-            renderPalettePreview(currentPaletteId);
-        } else if (wasmInitialized) {
-            renderPalettePreview(0);
-        }
-    };
-    arrayBufferReader.readAsArrayBuffer(file);
+    const needsConversion = isHeifFormat(file);
 
-    // Read data URL for img preview
-    const reader = new FileReader();
-    reader.onload = (e) => {
+    // Show UI immediately
+    const dataUrlReader = new FileReader();
+    dataUrlReader.onload = (e) => {
         imagePreview.src = e.target.result;
         previewContainer.classList.remove('hidden');
         settingsContainer.classList.remove('hidden');
@@ -344,10 +404,35 @@ function handleFile(file) {
             updatePaletteUI();
         }
     };
-    reader.readAsDataURL(file);
+    dataUrlReader.readAsDataURL(file);
+
+    if (needsConversion) {
+        // HEIF/HEIC: convert via canvas to PNG buffer
+        convertToPngBuffer(file).then(pngBuffer => {
+            selectedFileBuffer = pngBuffer;
+            if (wasmInitialized) {
+                const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+                renderPalettePreview(effectiveId);
+            }
+        }).catch(err => {
+            alert(err.message);
+        });
+    } else {
+        // Standard format: read directly
+        const arrayBufferReader = new FileReader();
+        arrayBufferReader.onload = (e) => {
+            selectedFileBuffer = new Uint8Array(e.target.result);
+            if (wasmInitialized) {
+                const effectiveId = currentPaletteId < 0 ? 0 : currentPaletteId;
+                renderPalettePreview(effectiveId);
+            }
+        };
+        arrayBufferReader.readAsArrayBuffer(file);
+    }
 }
 
 const DEFAULT_CHUNK_CHAR_LIMIT = 3000;
+const BROWSER_URL_MAX = 32779; // Chrome's max URL length
 
 function getChunkLimit() {
     return selectedPlatformLimit || DEFAULT_CHUNK_CHAR_LIMIT;
@@ -368,9 +453,9 @@ encodeBtn.addEventListener('click', () => {
             : encode_image_to_base62_with_palette(selectedFileBuffer, maxDimension, currentPaletteId);
         
         const baseUrl = window.location.origin + window.location.pathname;
-        const platformLimit = getChunkLimit();
+        const platformLimit = Math.min(getChunkLimit(), BROWSER_URL_MAX);
         // Reserve chars for URL overhead: baseUrl + "#/99-99/" (worst-case chunk prefix = 8 chars)
-        const urlOverhead = baseUrl.length + 8; // e.g. "http://192.168.15.20:8080/#/99-99/"
+        const urlOverhead = baseUrl.length + 8;
         const chunkDataLimit = platformLimit - urlOverhead;
         // For single links the overhead is just baseUrl + "#" (1 char less)
         const singleUrlOverhead = baseUrl.length + 1;

@@ -25,7 +25,7 @@
             <div class="card">
                 <div class="drop-zone" id="drop-zone">
                     <p>Tap or drop an image here</p>
-                    <input type="file" id="file-input" accept="image/*" style="display: none;">
+                    <input type="file" id="file-input" accept="image/*,.heif,.heic,image/heif,image/heic" style="display: none;">
                 </div>
                 <div id="preview-container" class="hidden">
                     <img id="image-preview" src="" alt="Preview">
@@ -102,6 +102,7 @@
             </div>
             <div class="card">
                 <p id="decoder-status">Decoding...</p>
+                <button id="save-png-btn" class="btn secondary hidden">💾 Save as PNG</button>
                 <button id="reset-btn" class="btn outline">Create Your Own</button>
             </div>
         </main>
