@@ -1,4 +1,4 @@
-import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js';
+import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=13';
 
 // Clipboard helper with fallback for non-HTTPS contexts
 function copyToClipboard(text) {
