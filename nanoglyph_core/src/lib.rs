@@ -6,8 +6,8 @@ pub mod decoder;
 use wasm_bindgen::prelude::*;
 
 #[wasm_bindgen]
-pub fn encode_image_to_base62(img_data: &[u8]) -> Result<String, JsValue> {
-    encoder::encode_image(img_data).map_err(|e| JsValue::from_str(&e))
+pub fn encode_image_to_base62(img_data: &[u8], max_dimension: u32) -> Result<String, JsValue> {
+    encoder::encode_image(img_data, max_dimension).map_err(|e| JsValue::from_str(&e))
 }
 
 #[wasm_bindgen]

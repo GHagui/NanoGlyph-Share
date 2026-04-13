@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NanoGlyph</title>
+    <title>NanoGlyph — Offline Image Sharing via URL</title>
+    <meta name="description" content="NanoGlyph is an offline-first PWA that encodes images into compact, URL-safe text. Share images via messaging apps on restrictive WiFi — no server needed.">
     <link rel="manifest" href="/manifest.json">
     <link rel="stylesheet" href="/style.css">
+    <link rel="icon" type="image/png" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/icons/icon-192.png">
     <meta name="theme-color" content="#121212">
 </head>
 <body>
@@ -24,6 +27,16 @@
                 <div id="preview-container" class="hidden">
                     <img id="image-preview" src="" alt="Preview">
                 </div>
+                
+                <div id="settings-container" class="hidden">
+                    <label for="quality-select">Max Size (Quality):</label>
+                    <select id="quality-select">
+                        <option value="64">Low (64px)</option>
+                        <option value="128" selected>Medium (128px)</option>
+                        <option value="192">High (192px)</option>
+                    </select>
+                </div>
+                
                 <button id="encode-btn" class="btn primary" disabled>Generate Magic Link</button>
             </div>
 

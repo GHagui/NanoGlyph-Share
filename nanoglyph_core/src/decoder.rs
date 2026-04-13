@@ -95,6 +95,11 @@ fn base62_decode(input: &str) -> Result<Vec<u8>, String> {
     Ok(bytes)
 }
 
+/// Public wrapper for testing
+pub(crate) fn base62_decode_pub(input: &str) -> Result<Vec<u8>, String> {
+    base62_decode(input)
+}
+
 fn rle_decode(data: &[u8]) -> Vec<u8> {
     let mut out = Vec::new();
     let mut i = 0;
@@ -110,4 +115,9 @@ fn rle_decode(data: &[u8]) -> Vec<u8> {
         i += 2;
     }
     out
+}
+
+/// Public wrapper for testing
+pub(crate) fn rle_decode_pub(data: &[u8]) -> Vec<u8> {
+    rle_decode(data)
 }

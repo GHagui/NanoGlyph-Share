@@ -1,16 +1,23 @@
 {
-  "name": "NanoGlyph",
+  "name": "NanoGlyph — Offline Image Sharing",
   "short_name": "NanoGlyph",
-  "description": "Offline-first image sharing via URL",
+  "description": "Offline-first image sharing via URL. Encode images into compact text that can be shared on restrictive WiFi.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#121212",
   "icons": [
     {
-      "src": "data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23bb86fc%22/></svg>",
+      "src": "/icons/icon-192.png",
       "sizes": "192x192",
-      "type": "image/svg+xml"
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }

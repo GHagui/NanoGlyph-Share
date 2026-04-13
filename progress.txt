@@ -9,6 +9,19 @@
 - Built decoder in Rust (exposed to Wasm) for decoding the payload.
 - Designed UI and PWA shell (HTML/CSS/JS/Manifest/ServiceWorker).
 - Integrated Wasm with frontend JS, handled Drag and Drop, File Picker.
-- Implemented payload chunking logic using LocalStorage.
+- Implemented payload chunking logic using LocalStorage (decoder side only).
 - Added advanced delta-encoding animation support for GIFs.
-- Task is complete.
+
+**Session 2 (Audit & Fixes)**:
+- Conducted full spec compliance audit — found 3 missing and 4 partial items.
+- Fixed Cargo.toml edition from non-existent "2024" to stable "2021".
+- Fixed unused `mut` compiler warning in encoder.rs.
+- Added `navigator.storage.persist()` call in bootstrap for persistent offline storage.
+- Implemented encoder-side payload chunking: when Base62 payload > 3000 chars, splits into multiple URLs with per-chunk copy buttons.
+- Fixed chunk URL format from `#chunk/<idx>-<total>/<data>` to `#/<idx>-<total>/<data>` to match spec exactly.
+- Added SEO `<meta name="description">` tag and descriptive `<title>`.
+- Generated real PNG icons (192px + 512px) and updated manifest.json + service worker cache.
+- Added 7 new roundtrip tests: RLE (4 tests) and Base62 (3 tests) — total now 12 tests all passing.
+- Updated Share button to handle chunked payloads correctly.
+- Rebuilt Wasm successfully. All 12 unit tests passing.
+- Task is complete. All spec requirements fulfilled.

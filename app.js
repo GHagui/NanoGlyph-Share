@@ -10,6 +10,8 @@ const fileInput = document.getElementById('file-input');
 const previewContainer = document.getElementById('preview-container');
 const imagePreview = document.getElementById('image-preview');
 const encodeBtn = document.getElementById('encode-btn');
+const settingsContainer = document.getElementById('settings-container');
+const qualitySelect = document.getElementById('quality-select');
 const resultContainer = document.getElementById('result-container');
 const urlBox = document.getElementById('url-box');
 const shareBtn = document.getElementById('share-btn');
@@ -25,6 +27,13 @@ async function bootstrap() {
         await init();
         wasmInitialized = true;
         console.log("Wasm initialized.");
+
+        // Request persistent storage as specified
+        if (navigator.storage && navigator.storage.persist) {
+            const granted = await navigator.storage.persist();
+            console.log(`Persistent storage ${granted ? 'granted' : 'denied'}.`);
+        }
+
         checkHash();
     } catch (e) {
         console.error("Failed to initialize Wasm:", e);
@@ -43,41 +52,44 @@ function checkHash() {
         
         const hash = window.location.hash.substring(1);
         
-        // Handle chunks
-        if (hash.startsWith('chunk/')) {
-            const parts = hash.split('/');
-            if (parts.length >= 3) {
-                const meta = parts[1].split('-');
-                const index = parseInt(meta[0]);
-                const total = parseInt(meta[1]);
-                const chunkData = parts.slice(2).join('/');
-                
-                localStorage.setItem(`ng_chunk_${index}_${total}`, chunkData);
-                
-                // Check if we have all chunks
-                let allChunks = '';
-                let missing = false;
-                for (let i = 1; i <= total; i++) {
-                    const c = localStorage.getItem(`ng_chunk_${i}_${total}`);
-                    if (!c) {
-                        missing = true;
-                        break;
-                    }
-                    allChunks += c;
-                }
-                
-                if (missing) {
-                    decoderStatus.textContent = `Received part ${index} of ${total}. Waiting for other parts...`;
-                    decodedCanvas.classList.add('hidden');
-                    return;
-                } else {
-                    decoderStatus.textContent = "All parts received! Decoding...";
-                    // Clean up
+        // Handle chunked links: format is /<index>-<total>/<chunk_data>
+        if (hash.startsWith('/')) {
+            const withoutLeadingSlash = hash.substring(1);
+            const slashIdx = withoutLeadingSlash.indexOf('/');
+            if (slashIdx !== -1) {
+                const meta = withoutLeadingSlash.substring(0, slashIdx).split('-');
+                if (meta.length === 2) {
+                    const index = parseInt(meta[0]);
+                    const total = parseInt(meta[1]);
+                    const chunkData = withoutLeadingSlash.substring(slashIdx + 1);
+                    
+                    localStorage.setItem(`ng_chunk_${index}_${total}`, chunkData);
+                    
+                    // Check if we have all chunks
+                    let allChunks = '';
+                    let missing = false;
                     for (let i = 1; i <= total; i++) {
-                        localStorage.removeItem(`ng_chunk_${i}_${total}`);
+                        const c = localStorage.getItem(`ng_chunk_${i}_${total}`);
+                        if (!c) {
+                            missing = true;
+                            break;
+                        }
+                        allChunks += c;
                     }
-                    decodeAndRender(allChunks);
-                    return;
+                    
+                    if (missing) {
+                        decoderStatus.textContent = `Received part ${index} of ${total}. Waiting for other parts...`;
+                        decodedCanvas.classList.add('hidden');
+                        return;
+                    } else {
+                        decoderStatus.textContent = "All parts received! Decoding...";
+                        // Clean up
+                        for (let i = 1; i <= total; i++) {
+                            localStorage.removeItem(`ng_chunk_${i}_${total}`);
+                        }
+                        decodeAndRender(allChunks);
+                        return;
+                    }
                 }
             }
         }
@@ -174,6 +186,7 @@ function handleFile(file) {
     reader.onload = (e) => {
         imagePreview.src = e.target.result;
         previewContainer.classList.remove('hidden');
+        settingsContainer.classList.remove('hidden');
         dropZone.classList.add('hidden');
         encodeBtn.disabled = !wasmInitialized;
     };
@@ -186,6 +199,8 @@ function handleFile(file) {
     arrayBufferReader.readAsArrayBuffer(file);
 }
 
+const CHUNK_CHAR_LIMIT = 3000;
+
 // Encoding Logic
 encodeBtn.addEventListener('click', () => {
     if (!selectedFileBuffer) return;
@@ -194,15 +209,72 @@ encodeBtn.addEventListener('click', () => {
         encodeBtn.disabled = true;
         encodeBtn.textContent = 'Encoding...';
         
-        // This blocks the main thread briefly, which is fine for small ops. 
-        // For production, consider using Web Workers.
-        const base62Str = encode_image_to_base62(selectedFileBuffer);
+        const maxDimension = parseInt(qualitySelect.value, 10);
         
-        const url = new URL(window.location.href);
-        url.hash = base62Str;
+        const base62Str = encode_image_to_base62(selectedFileBuffer, maxDimension);
         
-        urlBox.textContent = url.href;
-        resultContainer.classList.remove('hidden');
+        const baseUrl = window.location.origin + window.location.pathname;
+        
+        if (base62Str.length <= CHUNK_CHAR_LIMIT) {
+            // Single link — fits within the limit
+            const url = baseUrl + '#' + base62Str;
+            urlBox.innerHTML = '';
+            urlBox.textContent = url;
+            resultContainer.classList.remove('hidden');
+        } else {
+            // Payload exceeds limit — split into chunks
+            const chunks = [];
+            for (let i = 0; i < base62Str.length; i += CHUNK_CHAR_LIMIT) {
+                chunks.push(base62Str.substring(i, i + CHUNK_CHAR_LIMIT));
+            }
+            const total = chunks.length;
+            
+            urlBox.innerHTML = '';
+            
+            const info = document.createElement('p');
+            info.style.color = 'var(--secondary-color)';
+            info.style.marginBottom = '0.5rem';
+            info.style.fontFamily = 'inherit';
+            info.textContent = `Image split into ${total} links. Share all of them in order:`;
+            urlBox.appendChild(info);
+            
+            chunks.forEach((chunk, idx) => {
+                const chunkUrl = `${baseUrl}#/${idx + 1}-${total}/${chunk}`;
+                
+                const linkDiv = document.createElement('div');
+                linkDiv.style.marginBottom = '0.75rem';
+                
+                const label = document.createElement('strong');
+                label.style.color = 'var(--primary-color)';
+                label.textContent = `Part ${idx + 1} of ${total}:`;
+                linkDiv.appendChild(label);
+                
+                const urlText = document.createElement('div');
+                urlText.style.wordBreak = 'break-all';
+                urlText.style.fontSize = '0.8rem';
+                urlText.style.marginTop = '0.25rem';
+                urlText.textContent = chunkUrl;
+                linkDiv.appendChild(urlText);
+                
+                const copyChunkBtn = document.createElement('button');
+                copyChunkBtn.className = 'btn outline';
+                copyChunkBtn.style.marginTop = '0.25rem';
+                copyChunkBtn.style.padding = '0.4rem 0.8rem';
+                copyChunkBtn.style.fontSize = '0.85rem';
+                copyChunkBtn.textContent = `Copy Part ${idx + 1}`;
+                copyChunkBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(chunkUrl).then(() => {
+                        copyChunkBtn.textContent = 'Copied!';
+                        setTimeout(() => { copyChunkBtn.textContent = `Copy Part ${idx + 1}`; }, 1500);
+                    });
+                });
+                linkDiv.appendChild(copyChunkBtn);
+                
+                urlBox.appendChild(linkDiv);
+            });
+            
+            resultContainer.classList.remove('hidden');
+        }
         
     } catch (e) {
         console.error("Encoding error:", e);
@@ -215,10 +287,15 @@ encodeBtn.addEventListener('click', () => {
 
 // Share and Copy Logic
 shareBtn.addEventListener('click', async () => {
+    // For chunked payloads, share only the first chunk link; for single, share the full URL
+    const firstUrl = urlBox.querySelector('div') 
+        ? urlBox.querySelector('div div')?.textContent || urlBox.textContent 
+        : urlBox.textContent;
+    
     const shareData = {
         title: 'NanoGlyph Image',
         text: 'I shared an offline image with you via NanoGlyph!',
-        url: urlBox.textContent
+        url: firstUrl
     };
     
     if (navigator.share && navigator.canShare(shareData)) {

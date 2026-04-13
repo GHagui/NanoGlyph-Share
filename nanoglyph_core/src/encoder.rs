@@ -9,8 +9,6 @@ use crate::pixel_data::pack_pixels;
 use crate::palette::get_palette;
 use crate::{NanoGlyphHeader, NanoGlyphPayload};
 
-const MAX_DIMENSION: u32 = 128;
-
 // Bayer 4x4 dither matrix, normalized to 0..64
 const BAYER_4X4: [[u8; 4]; 4] = [
     [ 0, 32,  8, 40],
@@ -19,7 +17,7 @@ const BAYER_4X4: [[u8; 4]; 4] = [
     [60, 28, 52, 20],
 ];
 
-pub fn encode_image(img_data: &[u8]) -> Result<String, String> {
+pub fn encode_image(img_data: &[u8], max_dimension: u32) -> Result<String, String> {
     let mut frames = Vec::new();
     
     // Try to load as GIF animation first
@@ -47,8 +45,8 @@ pub fn encode_image(img_data: &[u8]) -> Result<String, String> {
     let mut new_w = width;
     let mut new_h = height;
     
-    if width > MAX_DIMENSION || height > MAX_DIMENSION {
-        let ratio = MAX_DIMENSION as f32 / width.max(height) as f32;
+    if width > max_dimension || height > max_dimension {
+        let ratio = max_dimension as f32 / width.max(height) as f32;
         new_w = (width as f32 * ratio).round() as u32;
         new_h = (height as f32 * ratio).round() as u32;
         new_w = new_w.max(1);
@@ -69,7 +67,7 @@ pub fn encode_image(img_data: &[u8]) -> Result<String, String> {
     let mut prev_indices = Vec::new();
     
     for (i, frame) in resized_frames.iter().enumerate() {
-        let mut indices = quantize_with_dither(frame, &palette);
+        let indices = quantize_with_dither(frame, &palette);
         
         if i == 0 {
             all_indices.extend_from_slice(&indices);
@@ -207,7 +205,7 @@ fn quantize_with_dither(img: &RgbaImage, palette: &[[u8; 3]; 8]) -> Vec<u8> {
     indices
 }
 
-fn rle_encode(data: &[u8]) -> Vec<u8> {
+pub(crate) fn rle_encode(data: &[u8]) -> Vec<u8> {
     if data.is_empty() {
         return Vec::new();
     }
@@ -229,4 +227,71 @@ fn rle_encode(data: &[u8]) -> Vec<u8> {
     out.push(current);
     
     out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::decoder;
+
+    #[test]
+    fn test_rle_roundtrip_simple() {
+        let data = vec![1, 1, 1, 2, 2, 3];
+        let encoded = rle_encode(&data);
+        let decoded = decoder::rle_decode_pub(&encoded);
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
+    fn test_rle_roundtrip_single_byte() {
+        let data = vec![42];
+        let encoded = rle_encode(&data);
+        let decoded = decoder::rle_decode_pub(&encoded);
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
+    fn test_rle_roundtrip_long_run() {
+        // 300 identical bytes — must be split into runs of 255 + 45
+        let data = vec![7u8; 300];
+        let encoded = rle_encode(&data);
+        let decoded = decoder::rle_decode_pub(&encoded);
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
+    fn test_rle_roundtrip_empty() {
+        let data: Vec<u8> = vec![];
+        let encoded = rle_encode(&data);
+        let decoded = decoder::rle_decode_pub(&encoded);
+        assert_eq!(decoded, data);
+    }
+
+    #[test]
+    fn test_base62_roundtrip() {
+        let original = vec![0x48, 0x65, 0x6c, 0x6c, 0x6f]; // "Hello"
+        let encoded = base62_encode(&original);
+        // Verify it only contains valid Base62 chars
+        for c in encoded.chars() {
+            assert!(c.is_ascii_alphanumeric(), "Non-alphanumeric char: {}", c);
+        }
+        let decoded = decoder::base62_decode_pub(&encoded).unwrap();
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn test_base62_roundtrip_with_leading_zeros() {
+        let original = vec![0, 0, 0, 1, 2, 3];
+        let encoded = base62_encode(&original);
+        let decoded = decoder::base62_decode_pub(&encoded).unwrap();
+        assert_eq!(decoded, original);
+    }
+
+    #[test]
+    fn test_base62_roundtrip_large() {
+        let original: Vec<u8> = (0..256).map(|i| i as u8).collect();
+        let encoded = base62_encode(&original);
+        let decoded = decoder::base62_decode_pub(&encoded).unwrap();
+        assert_eq!(decoded, original);
+    }
 }
