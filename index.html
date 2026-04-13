@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>NanoGlyph</title>
+    <link rel="manifest" href="/manifest.json">
+    <link rel="stylesheet" href="/style.css">
+    <meta name="theme-color" content="#121212">
+</head>
+<body>
+    <div id="app">
+        <header>
+            <h1>NanoGlyph</h1>
+            <p>Offline-first image sharing via URL</p>
+        </header>
+
+        <main id="encoder-view">
+            <div class="card">
+                <div class="drop-zone" id="drop-zone">
+                    <p>Tap or drop an image here</p>
+                    <input type="file" id="file-input" accept="image/*" style="display: none;">
+                </div>
+                <div id="preview-container" class="hidden">
+                    <img id="image-preview" src="" alt="Preview">
+                </div>
+                <button id="encode-btn" class="btn primary" disabled>Generate Magic Link</button>
+            </div>
+
+            <div id="result-container" class="card hidden">
+                <h3>Magic Link Ready!</h3>
+                <div class="url-box" id="url-box"></div>
+                <button id="share-btn" class="btn secondary">Share Link</button>
+                <button id="copy-btn" class="btn outline">Copy Link</button>
+            </div>
+        </main>
+
+        <main id="decoder-view" class="hidden">
+            <div class="card">
+                <h2>Received Image</h2>
+                <div id="decoded-container">
+                    <canvas id="decoded-canvas"></canvas>
+                </div>
+                <p id="decoder-status">Decoding...</p>
+                <button id="reset-btn" class="btn outline">Create Your Own</button>
+            </div>
+        </main>
+    </div>
+
+    <!-- Load Wasm module -->
+    <script type="module" src="/app.js"></script>
+    <script>
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/sw.js')
+                .then(() => console.log('Service Worker Registered'));
+        }
+    </script>
+</body>
+</html>

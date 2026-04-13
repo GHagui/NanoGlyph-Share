@@ -1,4 +1,36 @@
+pub mod pixel_data;
+pub mod palette;
+pub mod encoder;
+pub mod decoder;
+
 use wasm_bindgen::prelude::*;
+
+#[wasm_bindgen]
+pub fn encode_image_to_base62(img_data: &[u8]) -> Result<String, JsValue> {
+    encoder::encode_image(img_data).map_err(|e| JsValue::from_str(&e))
+}
+
+#[wasm_bindgen]
+pub struct DecodedImage {
+    pub width: u32,
+    pub height: u32,
+    pub frame_count: u8,
+    rgba: Vec<u8>,
+}
+
+#[wasm_bindgen]
+impl DecodedImage {
+    pub fn get_rgba(&self) -> Vec<u8> {
+        self.rgba.clone()
+    }
+}
+
+#[wasm_bindgen]
+pub fn decode_base62_to_image(base62_str: &str) -> Result<DecodedImage, JsValue> {
+    decoder::decode_base62_to_rgba(base62_str)
+        .map(|(width, height, frame_count, rgba)| DecodedImage { width, height, frame_count, rgba })
+        .map_err(|e| JsValue::from_str(&e))
+}
 
 #[wasm_bindgen]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -71,6 +103,50 @@ impl NanoGlyphHeader {
             palette_id: bytes[3],
             flags: Flags::from_u8(bytes[4]),
         }
+    }
+}
+
+#[wasm_bindgen]
+pub struct NanoGlyphPayload {
+    header: NanoGlyphHeader,
+    packed_pixels: Vec<u8>,
+}
+
+#[wasm_bindgen]
+impl NanoGlyphPayload {
+    #[wasm_bindgen(constructor)]
+    pub fn new(header: NanoGlyphHeader, packed_pixels: Vec<u8>) -> Self {
+        Self { header, packed_pixels }
+    }
+
+    pub fn to_binary(&self) -> Vec<u8> {
+        let mut binary = Vec::with_capacity(5 + self.packed_pixels.len());
+        binary.extend_from_slice(&self.header.to_bytes());
+        binary.extend_from_slice(&self.packed_pixels);
+        binary
+    }
+
+    pub fn from_binary(binary: &[u8]) -> Result<NanoGlyphPayload, JsValue> {
+        if binary.len() < 5 {
+            return Err(JsValue::from_str("Payload too short for header"));
+        }
+        let mut header_bytes = [0u8; 5];
+        header_bytes.copy_from_slice(&binary[0..5]);
+        let header = NanoGlyphHeader::from_bytes(&header_bytes);
+        let packed_pixels = binary[5..].to_vec();
+        
+        Ok(Self {
+            header,
+            packed_pixels,
+        })
+    }
+    
+    pub fn get_header(&self) -> NanoGlyphHeader {
+        self.header
+    }
+    
+    pub fn get_packed_pixels(&self) -> Vec<u8> {
+        self.packed_pixels.clone()
     }
 }
 

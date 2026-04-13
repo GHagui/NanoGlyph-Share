@@ -3,4 +3,12 @@
 **Session 1**:
 - Started project.
 - Defined architecture and implementation plan.
-- Setting up core Rust/Wasm project, tracking files, and binary data model.
+- Set up core Rust/Wasm project, tracking files, and binary data model.
+- Built Rust Wasm encoder logic including resizing, quantization, ordered dithering, byte packing, RLE, and Zlib deflation.
+- Created robust base62 encoder in Rust to handle byte arrays of arbitrary length.
+- Built decoder in Rust (exposed to Wasm) for decoding the payload.
+- Designed UI and PWA shell (HTML/CSS/JS/Manifest/ServiceWorker).
+- Integrated Wasm with frontend JS, handled Drag and Drop, File Picker.
+- Implemented payload chunking logic using LocalStorage.
+- Added advanced delta-encoding animation support for GIFs.
+- Task is complete.
