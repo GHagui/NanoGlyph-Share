@@ -4,229 +4,294 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NanoGlyph — Offline Image Sharing via URL</title>
+    <title>NanoGlyph — Images Become Links</title>
     <meta name="description"
-        content="NanoGlyph is an offline-first PWA that encodes images into compact, URL-safe text. Share images via messaging apps on restrictive WiFi — no server needed.">
+        content="NanoGlyph turns images into compact, shareable URLs entirely in your browser. No cloud, no upload, no server.">
     <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="./style.css">
+    <link rel="stylesheet" href="./style.css?v=14">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192.png">
-    <meta name="theme-color" content="#121212">
+    <meta name="theme-color" content="#f3f0e8">
 </head>
 
 <body>
+    <div class="ambient-dither" aria-hidden="true"></div>
+
     <div id="app">
-        <header>
-            <a href="./" id="home-link">
-                <img src="./icons/icon-192.png" alt="NanoGlyph" class="header-icon" height="128" width="128">
-            </a>
-            <a href="./" id="home-link">
-                <h1>NanoGlyph</h1>
-            </a>
-            <p>Offline-first image sharing via URL</p>
+        <header class="site-header">
+            <div class="topbar">
+                <a href="./" id="home-link" class="brand" aria-label="NanoGlyph home">
+                    <span class="brand-mark">
+                        <img src="./icons/icon-192.png" alt="" class="header-icon" height="64" width="64">
+                    </span>
+                    <span class="brand-name">NANO<span>GLYPH</span></span>
+                </a>
+
+                <div class="system-flags" aria-label="Application properties">
+                    <span><i class="status-dot" aria-hidden="true"></i> OFFLINE</span>
+                    <span>ZERO SERVER</span>
+                </div>
+            </div>
+
+            <div class="hero-copy">
+                <p class="eyebrow">PIXEL TRANSMISSION TOOL / 001</p>
+                <h1>IMAGE <span aria-hidden="true">→</span> URL</h1>
+                <p class="hero-description">Compress an image into a link. The pixels travel inside the message —
+                    nothing is uploaded anywhere.</p>
+            </div>
         </header>
 
         <main id="encoder-view">
-            <div class="card">
-                <div class="drop-zone" id="drop-zone">
-                    <p>Tap or drop an image here</p>
-                    <input type="file" id="file-input" accept="image/*,.heif,.heic,image/heif,image/heic"
-                        style="display: none;">
-                </div>
-                <div id="preview-container" class="hidden">
-                    <img id="image-preview" src="" alt="Preview">
-                </div>
-
-                <div id="settings-container" class="hidden">
-                    <label for="quality-select">Max Size (Quality):</label>
-                    <select id="quality-select">
-                        <option value="64">Low (64px)</option>
-                        <option value="96">Low-Medium (96px)</option>
-                        <option value="128" selected>Medium (128px) Recommended</option>
-                        <option value="160">Medium-High (160px)</option>
-                        <option value="192">High (192px)</option>
-                        <option value="224">Very High (224px)</option>
-                        <option value="256">Extreme (256px)</option>
-                        <option value="512">Maximum (512px)</option>
-                        <option value="1024">Zen (1024px)</option>
-                        <option value="2048">Cosmic (2048px)</option>
-                    </select>
-                    <div class="message-box warning hidden" id="warning-high">
-                        ⚠️ <strong>256px and 512px</strong> produce very long URLs that may be truncated or fail to
-                        open. Recommended for local save only.
+            <section class="card tool-card" aria-labelledby="encoder-title">
+                <div class="panel-heading">
+                    <div>
+                        <p class="panel-index">01 / INPUT</p>
+                        <h2 id="encoder-title">BUILD A GLYPH</h2>
                     </div>
-                    <div class="message-box danger hidden" id="warning-zen">
-                        🛑 <strong>Danger (Zen Mode):</strong> 1024px will completely freeze your device for several
-                        seconds while calculating millions of pixels. At least you are Zen enough to wait patiently. 🙏
-                    </div>
-                    <div class="message-box fatal hidden" id="warning-cosmic">
-                        💀 <strong>COSMIC MADNESS:</strong> 2048px is the physical limit of this engine's universe.
-                        Generate only if you are willing to sacrifice your CPU/RAM to the cosmic void. Your browser WILL
-                        suffer. 🌌
-                    </div>
+                    <span class="local-badge">LOCAL ONLY</span>
                 </div>
 
-                <div id="palette-container" class="hidden">
-                    <div class="palette-selector">
-                        <div class="palette-header">
-                            <label>Color Palette:</label>
-                            <div class="palette-toggle-group">
-                                <button type="button" id="palette-btn-auto" class="palette-toggle active">AUTO</button>
-                                <button type="button" id="palette-btn-manual" class="palette-toggle">MANUAL</button>
-                            </div>
+                <div class="drop-zone" id="drop-zone" role="button" tabindex="0"
+                    aria-label="Choose an image or drop one here">
+                    <div class="drop-zone-art" aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <p class="drop-command">DROP IMAGE HERE</p>
+                    <p class="drop-note">or tap to browse / PNG · JPG · GIF · WEBP · HEIC</p>
+                    <span class="drop-action">SELECT FILE <b aria-hidden="true">↗</b></span>
+                    <input type="file" id="file-input" accept="image/*,.heif,.heic,image/heif,image/heic" hidden>
+                </div>
+
+                <div class="editor-workspace">
+                    <section id="preview-container" class="preview-panel hidden" aria-labelledby="preview-title">
+                        <div class="module-heading">
+                            <span id="preview-title">LIVE PIXEL PREVIEW</span>
+                            <span class="module-status">8 COLORS</span>
                         </div>
-                        <div class="palette-swatches active" id="palette-swatches"></div>
-                        <div class="palette-nav">
-                            <button type="button" id="palette-prev">◀</button>
-                            <span class="palette-mode-label" id="palette-mode-label">Auto — best match</span>
-                            <button type="button" id="palette-next">▶</button>
+                        <div class="preview-frame">
+                            <img id="image-preview" src="" alt="Selected image preview">
                         </div>
-                    </div>
-                </div>
-
-                <div id="adjustments-container" class="hidden">
-                    <div class="expandable-section" id="adjustments-section">
-                        <button type="button" class="expandable-header" id="adjustments-toggle" aria-expanded="false">
-                            <span class="expandable-title">
-                                Image Adjustments
-                            </span>
-                            <span class="expandable-badge" id="adjustments-badge">Default</span>
-                            <span class="expandable-chevron">▶</span>
-                        </button>
-                        <div class="expandable-body" id="adjustments-body" aria-hidden="true">
-                            <!-- Exposure -->
-                            <div class="adj-row">
-                                <div class="adj-label-row">
-                                    <label class="adj-label" for="adj-exposure">Exposure</label>
-                                    <span class="adj-value" id="adj-exposure-val">0</span>
-                                    <button type="button" class="adj-reset" data-target="adj-exposure"
-                                        title="Reset">↺</button>
-                                </div>
-                                <input type="range" id="adj-exposure" class="adj-slider" min="-100" max="100" value="0"
-                                    step="1">
-                            </div>
-                            <!-- Contrast -->
-                            <div class="adj-row">
-                                <div class="adj-label-row">
-                                    <label class="adj-label" for="adj-contrast">Contrast</label>
-                                    <span class="adj-value" id="adj-contrast-val">0</span>
-                                    <button type="button" class="adj-reset" data-target="adj-contrast"
-                                        title="Reset">↺</button>
-                                </div>
-                                <input type="range" id="adj-contrast" class="adj-slider" min="-100" max="100" value="0"
-                                    step="1">
-                            </div>
-                            <!-- Saturation -->
-                            <div class="adj-row">
-                                <div class="adj-label-row">
-                                    <label class="adj-label" for="adj-saturation">Saturation</label>
-                                    <span class="adj-value" id="adj-saturation-val">0</span>
-                                    <button type="button" class="adj-reset" data-target="adj-saturation"
-                                        title="Reset">↺</button>
-                                </div>
-                                <input type="range" id="adj-saturation" class="adj-slider" min="-100" max="100"
-                                    value="0" step="1">
-                            </div>
-                            <!-- Hue / Matrix -->
-                            <div class="adj-row">
-                                <div class="adj-label-row">
-                                    <label class="adj-label" for="adj-hue">Hue Rotate</label>
-                                    <span class="adj-value" id="adj-hue-val">0°</span>
-                                    <button type="button" class="adj-reset" data-target="adj-hue"
-                                        title="Reset">↺</button>
-                                </div>
-                                <input type="range" id="adj-hue" class="adj-slider" min="-180" max="180" value="0"
-                                    step="1">
-                            </div>
-                            <!-- Temperature -->
-                            <div class="adj-row">
-                                <div class="adj-label-row">
-                                    <label class="adj-label" for="adj-temperature">Temperature</label>
-                                    <span class="adj-value" id="adj-temperature-val">0</span>
-                                    <button type="button" class="adj-reset" data-target="adj-temperature"
-                                        title="Reset">↺</button>
-                                </div>
-                                <input type="range" id="adj-temperature" class="adj-slider" min="-100" max="100"
-                                    value="0" step="1">
-                            </div>
-                            <!-- Reset All -->
-                            <button type="button" class="btn outline adj-reset-all" id="adj-reset-all">↺ Reset All
-                                Adjustments</button>
+                        <div class="preview-scale" aria-hidden="true">
+                            <span>0</span><span>PIXEL SPACE</span><span>100</span>
                         </div>
+                    </section>
+
+                    <div class="control-stack">
+                        <section id="settings-container" class="control-block hidden">
+                            <div class="control-heading">
+                                <span class="control-number">01</span>
+                                <label for="quality-select">OUTPUT SCALE</label>
+                            </div>
+                            <select id="quality-select">
+                                <option value="64">Low / 64px</option>
+                                <option value="96">Low–Medium / 96px</option>
+                                <option value="128" selected>Medium / 128px — Recommended</option>
+                                <option value="160">Medium–High / 160px</option>
+                                <option value="192">High / 192px</option>
+                                <option value="224">Very High / 224px</option>
+                                <option value="256">Extreme / 256px</option>
+                                <option value="512">Maximum / 512px</option>
+                                <option value="1024">Zen / 1024px</option>
+                                <option value="2048">Cosmic / 2048px</option>
+                            </select>
+                            <div class="message-box warning hidden" id="warning-high">
+                                <strong>LONG SIGNAL:</strong> 256px and 512px create huge URLs that can be truncated.
+                                Best used for local saves.
+                            </div>
+                            <div class="message-box danger hidden" id="warning-zen">
+                                <strong>HEAVY COMPUTE:</strong> 1024px can freeze slower devices while processing
+                                millions of pixels.
+                            </div>
+                            <div class="message-box fatal hidden" id="warning-cosmic">
+                                <strong>COSMIC LIMIT:</strong> 2048px pushes the engine to its physical limit. Expect
+                                serious CPU and memory pressure.
+                            </div>
+                        </section>
+
+                        <section id="palette-container" class="control-block hidden">
+                            <div class="palette-selector">
+                                <div class="palette-header control-heading">
+                                    <div>
+                                        <span class="control-number">02</span>
+                                        <label>COLOR MATRIX</label>
+                                    </div>
+                                    <div class="palette-toggle-group" aria-label="Palette selection mode">
+                                        <button type="button" id="palette-btn-auto"
+                                            class="palette-toggle active" aria-pressed="true">AUTO</button>
+                                        <button type="button" id="palette-btn-manual"
+                                            class="palette-toggle" aria-pressed="false">MANUAL</button>
+                                    </div>
+                                </div>
+                                <div class="palette-swatches active" id="palette-swatches" aria-label="Current palette"></div>
+                                <div class="palette-nav">
+                                    <button type="button" id="palette-prev" aria-label="Previous palette">←</button>
+                                    <span class="palette-mode-label" id="palette-mode-label">Auto / best match</span>
+                                    <button type="button" id="palette-next" aria-label="Next palette">→</button>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="adjustments-container" class="control-block hidden">
+                            <div class="expandable-section" id="adjustments-section">
+                                <button type="button" class="expandable-header" id="adjustments-toggle"
+                                    aria-expanded="false" aria-controls="adjustments-body">
+                                    <span class="control-number">03</span>
+                                    <span class="expandable-title">IMAGE TUNING</span>
+                                    <span class="expandable-badge" id="adjustments-badge">DEFAULT</span>
+                                    <span class="expandable-chevron" aria-hidden="true">→</span>
+                                </button>
+                                <div class="expandable-body" id="adjustments-body" aria-hidden="true">
+                                    <div class="adj-row">
+                                        <div class="adj-label-row">
+                                            <label class="adj-label" for="adj-exposure">Exposure</label>
+                                            <span class="adj-value" id="adj-exposure-val">0</span>
+                                            <button type="button" class="adj-reset" data-target="adj-exposure"
+                                                title="Reset exposure" aria-label="Reset exposure">↺</button>
+                                        </div>
+                                        <input type="range" id="adj-exposure" class="adj-slider" min="-100" max="100"
+                                            value="0" step="1">
+                                    </div>
+                                    <div class="adj-row">
+                                        <div class="adj-label-row">
+                                            <label class="adj-label" for="adj-contrast">Contrast</label>
+                                            <span class="adj-value" id="adj-contrast-val">0</span>
+                                            <button type="button" class="adj-reset" data-target="adj-contrast"
+                                                title="Reset contrast" aria-label="Reset contrast">↺</button>
+                                        </div>
+                                        <input type="range" id="adj-contrast" class="adj-slider" min="-100" max="100"
+                                            value="0" step="1">
+                                    </div>
+                                    <div class="adj-row">
+                                        <div class="adj-label-row">
+                                            <label class="adj-label" for="adj-saturation">Saturation</label>
+                                            <span class="adj-value" id="adj-saturation-val">0</span>
+                                            <button type="button" class="adj-reset" data-target="adj-saturation"
+                                                title="Reset saturation" aria-label="Reset saturation">↺</button>
+                                        </div>
+                                        <input type="range" id="adj-saturation" class="adj-slider" min="-100" max="100"
+                                            value="0" step="1">
+                                    </div>
+                                    <div class="adj-row">
+                                        <div class="adj-label-row">
+                                            <label class="adj-label" for="adj-hue">Hue rotate</label>
+                                            <span class="adj-value" id="adj-hue-val">0°</span>
+                                            <button type="button" class="adj-reset" data-target="adj-hue"
+                                                title="Reset hue" aria-label="Reset hue">↺</button>
+                                        </div>
+                                        <input type="range" id="adj-hue" class="adj-slider" min="-180" max="180"
+                                            value="0" step="1">
+                                    </div>
+                                    <div class="adj-row">
+                                        <div class="adj-label-row">
+                                            <label class="adj-label" for="adj-temperature">Temperature</label>
+                                            <span class="adj-value" id="adj-temperature-val">0</span>
+                                            <button type="button" class="adj-reset" data-target="adj-temperature"
+                                                title="Reset temperature" aria-label="Reset temperature">↺</button>
+                                        </div>
+                                        <input type="range" id="adj-temperature" class="adj-slider" min="-100" max="100"
+                                            value="0" step="1">
+                                    </div>
+                                    <button type="button" class="btn outline adj-reset-all" id="adj-reset-all">↺ RESET
+                                        ALL</button>
+                                </div>
+                            </div>
+                        </section>
+
+                        <section id="compression-container" class="control-block hidden">
+                            <div class="control-heading">
+                                <span class="control-number">04</span>
+                                <label for="compression-select">COMPRESSION</label>
+                            </div>
+                            <select id="compression-select">
+                                <option value="brotli" selected>Brotli / high compression</option>
+                                <option value="zlib">Zlib / compatibility</option>
+                            </select>
+                        </section>
+
+                        <section id="platform-container" class="control-block hidden">
+                            <div class="control-heading">
+                                <span class="control-number">05</span>
+                                <label>TRANSMISSION ROUTE</label>
+                            </div>
+                            <div class="platform-grid" id="platform-grid">
+                                <button class="platform-btn selected" data-platform="whatsapp" data-limit="4096"
+                                    type="button" aria-pressed="true">
+                                    <img src="./icons/whatsapp.svg" alt="" class="platform-icon">
+                                    <span class="platform-name">WhatsApp</span><span class="platform-limit">4K</span>
+                                </button>
+                                <button class="platform-btn" data-platform="telegram" data-limit="4096" type="button" aria-pressed="false">
+                                    <img src="./icons/telegram.svg" alt="" class="platform-icon">
+                                    <span class="platform-name">Telegram</span><span class="platform-limit">4K</span>
+                                </button>
+                                <button class="platform-btn" data-platform="messenger" data-limit="2000" type="button" aria-pressed="false">
+                                    <img src="./icons/messenger.svg" alt="" class="platform-icon">
+                                    <span class="platform-name">Messenger</span><span class="platform-limit">2K</span>
+                                </button>
+                                <button class="platform-btn" data-platform="instagram" data-limit="1000" type="button" aria-pressed="false">
+                                    <img src="./icons/instagram.svg" alt="" class="platform-icon">
+                                    <span class="platform-name">Instagram</span><span class="platform-limit">1K</span>
+                                </button>
+                            </div>
+                        </section>
                     </div>
                 </div>
 
-                <div id="compression-container" class="hidden">
-                    <label for="compression-select">Compression Algorithm:</label>
-                    <select id="compression-select">
-                        <option value="brotli" selected>Brotli (High Compression)</option>
-                        <option value="zlib">Zlib (Compatibility)</option>
-                    </select>
-                </div>
-
-                <div id="platform-container" class="hidden">
-                    <label>Share via:</label>
-                    <div class="platform-grid" id="platform-grid">
-                        <button class="platform-btn selected" data-platform="whatsapp" data-limit="4096" type="button">
-                            <img src="./icons/whatsapp.svg" alt="WhatsApp" class="platform-icon">
-                            <span class="platform-name">WhatsApp</span>
-                            <span class="platform-limit">4K chars</span>
-                        </button>
-                        <button class="platform-btn" data-platform="telegram" data-limit="4096" type="button">
-                            <img src="./icons/telegram.svg" alt="Telegram" class="platform-icon">
-                            <span class="platform-name">Telegram</span>
-                            <span class="platform-limit">4K chars</span>
-                        </button>
-                        <button class="platform-btn" data-platform="messenger" data-limit="2000" type="button">
-                            <img src="./icons/messenger.svg" alt="Messenger" class="platform-icon">
-                            <span class="platform-name">Messenger</span>
-                            <span class="platform-limit">2K chars</span>
-                        </button>
-                        <button class="platform-btn" data-platform="instagram" data-limit="1000" type="button">
-                            <img src="./icons/instagram.svg" alt="Instagram" class="platform-icon">
-                            <span class="platform-name">Instagram</span>
-                            <span class="platform-limit">1K chars</span>
-                        </button>
+                <div class="action-block">
+                    <div class="action-copy">
+                        <span>YOUR IMAGE NEVER LEAVES THIS DEVICE</span>
+                        <span>RUST + WASM / BAYER DITHER</span>
                     </div>
+                    <button id="encode-btn" class="btn primary" disabled>
+                        <span class="btn-label">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>
+                    </button>
+                    <button id="save-preview-btn" class="btn outline hidden">SAVE PIXEL PNG ↓</button>
                 </div>
+            </section>
 
-                <button id="encode-btn" class="btn primary" disabled>✨ Generate Magic Link</button>
-                <button id="save-preview-btn" class="btn outline hidden">💾 Save as PNG</button>
-            </div>
-
-            <div id="result-container" class="card hidden">
-                <h3>Magic Link Ready!</h3>
-                <div class="url-box" id="url-box"></div>
+            <section id="result-container" class="card result-card hidden" aria-live="polite">
+                <div class="panel-heading">
+                    <div><p class="panel-index">02 / OUTPUT</p><h2>GLYPH READY</h2></div>
+                    <span class="result-signal">SIGNAL OK</span>
+                </div>
+                <p class="result-intro">The complete image is packed inside this address.</p>
+                <div class="url-box" id="url-box" tabindex="0"></div>
                 <div id="chunk-buttons"></div>
-                <button id="share-btn" class="btn secondary">Share Link</button>
-                <button id="copy-btn" class="btn outline">Copy Link</button>
-            </div>
+                <div class="result-actions">
+                    <button id="share-btn" class="btn secondary">SHARE LINK ↗</button>
+                    <button id="copy-btn" class="btn outline">COPY LINK</button>
+                </div>
+            </section>
         </main>
 
         <main id="decoder-view" class="hidden">
-            <div id="decoded-container">
-                <canvas id="decoded-canvas"></canvas>
-            </div>
-            <div class="card">
-                <p id="decoder-status">Decoding...</p>
-                <button id="save-png-btn" class="btn secondary hidden">💾 Save as PNG</button>
-                <button id="reset-btn" class="btn outline">Create Your Own</button>
-            </div>
+            <section class="decoder-hero">
+                <p class="eyebrow">INCOMING GLYPH / DECODER</p>
+                <h1>PIXELS RECEIVED</h1>
+                <div id="decoded-container"><canvas id="decoded-canvas"></canvas></div>
+            </section>
+            <section class="card decoder-card">
+                <p id="decoder-status" role="status" aria-live="polite">DECODING SIGNAL…</p>
+                <button id="save-png-btn" class="btn secondary hidden">SAVE PIXEL PNG ↓</button>
+                <button id="reset-btn" class="btn outline">CREATE YOUR OWN →</button>
+            </section>
         </main>
 
         <footer>
-            <a href="https://github.com/GHagui/NanoGlyph-Share" target="_blank" rel="noopener" class="footer-github">
-                <img src="./icons/github.svg" alt="GitHub" class="footer-icon"> Source Code
-            </a>
-            <a href="https://ghagui.github.io/Gabriel_Hagui/" target="_blank" rel="noopener" class="footer-credit">
-                ❤️ Made by Gabriel Hagui in Rust
-            </a>
-            <button id="clear-cache-btn" class="footer-clear-btn">🗑️ Clear Cache &amp; Data</button>
+            <div class="footer-rule"><span>NANOGLYPH / OPEN SOURCE</span><span>NO CLOUD SINCE 2025</span></div>
+            <div class="footer-links">
+                <a href="https://github.com/GHagui/NanoGlyph-Share" target="_blank" rel="noopener"
+                    class="footer-github"><img src="./icons/github.svg" alt="" class="footer-icon">SOURCE CODE ↗</a>
+                <a href="https://ghagui.github.io/Gabriel_Hagui/" target="_blank" rel="noopener"
+                    class="footer-credit">BUILT BY GABRIEL HAGUI / RUST</a>
+                <button id="clear-cache-btn" class="footer-clear-btn">CLEAR LOCAL CACHE</button>
+            </div>
         </footer>
     </div>
 
-    <!-- Load Wasm module -->
-    <script type="module" src="./app.js?v=13"></script>
+    <script type="module" src="./app.js?v=14"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js')

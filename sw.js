@@ -1,9 +1,9 @@
-const CACHE_NAME = 'nanoglyph-v13';
+const CACHE_NAME = 'nanoglyph-v17';
 const ASSETS = [
     './',
     './index.html',
-    './style.css',
-    './app.js',
+    './style.css?v=14',
+    './app.js?v=14',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
@@ -13,13 +13,26 @@ const ASSETS = [
     './icons/instagram.svg',
     './icons/github.svg',
     './nanoglyph_core/pkg/nanoglyph_core_bg.wasm',
-    './nanoglyph_core/pkg/nanoglyph_core.js'
+    './nanoglyph_core/pkg/nanoglyph_core.js?v=14'
 ];
 
 self.addEventListener('install', event => {
     event.waitUntil(
         caches.open(CACHE_NAME)
             .then(cache => cache.addAll(ASSETS))
+            .then(() => self.skipWaiting())
+    );
+});
+
+self.addEventListener('activate', event => {
+    event.waitUntil(
+        caches.keys()
+            .then(names => Promise.all(
+                names
+                    .filter(name => name.startsWith('nanoglyph-') && name !== CACHE_NAME)
+                    .map(name => caches.delete(name))
+            ))
+            .then(() => self.clients.claim())
     );
 });
 

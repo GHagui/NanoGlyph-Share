@@ -1,4 +1,4 @@
-import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=13';
+import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=14';
 
 // Clipboard helper with fallback for non-HTTPS contexts
 function copyToClipboard(text) {
@@ -63,10 +63,12 @@ let wasmInitialized = false;
 // DOM Elements
 const encoderView = document.getElementById('encoder-view');
 const decoderView = document.getElementById('decoder-view');
+const appRoot = document.getElementById('app');
 const dropZone = document.getElementById('drop-zone');
 const fileInput = document.getElementById('file-input');
 const previewContainer = document.getElementById('preview-container');
 const imagePreview = document.getElementById('image-preview');
+const previewFrame = document.querySelector('.preview-frame');
 const encodeBtn = document.getElementById('encode-btn');
 const settingsContainer = document.getElementById('settings-container');
 const qualitySelect = document.getElementById('quality-select');
@@ -155,7 +157,7 @@ function syncAdjustmentUI() {
     [adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(updateSliderTrack);
 
     const active = hasAdjustments(adj);
-    adjustmentsBadge.textContent = active ? 'Modified' : 'Default';
+    adjustmentsBadge.textContent = active ? 'MODIFIED' : 'DEFAULT';
     adjustmentsBadge.classList.toggle('active', active);
 }
 
@@ -222,8 +224,12 @@ document.getElementById('adj-reset-all').addEventListener('click', () => {
 platformGrid.addEventListener('click', (e) => {
     const btn = e.target.closest('.platform-btn');
     if (!btn) return;
-    platformGrid.querySelectorAll('.platform-btn').forEach(b => b.classList.remove('selected'));
+    platformGrid.querySelectorAll('.platform-btn').forEach(b => {
+        b.classList.remove('selected');
+        b.setAttribute('aria-pressed', 'false');
+    });
     btn.classList.add('selected');
+    btn.setAttribute('aria-pressed', 'true');
     selectedPlatformLimit = parseInt(btn.dataset.limit, 10);
 });
 
@@ -275,7 +281,7 @@ function renderPalettePreview(paletteId) {
         // Show canvas, hide original img
         imagePreview.style.display = 'none';
         if (!previewCanvas.parentElement) {
-            previewContainer.appendChild(previewCanvas);
+            previewFrame.appendChild(previewCanvas);
         }
         previewCanvas.style.display = 'block';
 
@@ -291,10 +297,14 @@ function updatePaletteUI() {
     if (paletteAutoMode) {
         paletteBtnAuto.classList.add('active');
         paletteBtnManual.classList.remove('active');
-        paletteModeLabel.textContent = 'Auto — best match';
+        paletteBtnAuto.setAttribute('aria-pressed', 'true');
+        paletteBtnManual.setAttribute('aria-pressed', 'false');
+        paletteModeLabel.textContent = 'Auto / best match';
     } else {
         paletteBtnAuto.classList.remove('active');
         paletteBtnManual.classList.add('active');
+        paletteBtnAuto.setAttribute('aria-pressed', 'false');
+        paletteBtnManual.setAttribute('aria-pressed', 'true');
         paletteModeLabel.textContent = `Manual — ${currentPaletteId}/98`;
     }
     // Always render dithered preview when image is loaded
@@ -368,8 +378,8 @@ qualitySelect.addEventListener('change', () => {
 savePreviewBtn.addEventListener('click', () => {
     const previewCanvas = document.getElementById('palette-preview-canvas');
     saveCanvasAsUpscaledPng(previewCanvas, 'nanoglyph-preview.png', () => {
-        savePreviewBtn.textContent = '✅ Saved!';
-        setTimeout(() => { savePreviewBtn.textContent = '💾 Save as PNG'; }, 2000);
+        savePreviewBtn.textContent = 'SAVED ✓';
+        setTimeout(() => { savePreviewBtn.textContent = 'SAVE PIXEL PNG ↓'; }, 2000);
     });
 });
 
@@ -378,6 +388,11 @@ async function bootstrap() {
         await init();
         wasmInitialized = true;
         console.log("Wasm initialized.");
+
+        if (imageSession) {
+            encodeBtn.disabled = false;
+            updatePaletteUI();
+        }
 
         // Request persistent storage as specified
         if (navigator.storage && navigator.storage.persist) {
@@ -521,8 +536,8 @@ function decodeAndRender(base62Str) {
 // Save decoded image as PNG
 savePngBtn.addEventListener('click', () => {
     saveCanvasAsUpscaledPng(decodedCanvas, 'nanoglyph-image.png', () => {
-        savePngBtn.textContent = '✅ Saved!';
-        setTimeout(() => { savePngBtn.textContent = '💾 Save as PNG'; }, 2000);
+        savePngBtn.textContent = 'SAVED ✓';
+        setTimeout(() => { savePngBtn.textContent = 'SAVE PIXEL PNG ↓'; }, 2000);
     });
 });
 
@@ -530,6 +545,13 @@ window.addEventListener('hashchange', checkHash);
 
 // File Selection Logic
 dropZone.addEventListener('click', () => fileInput.click());
+
+dropZone.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        fileInput.click();
+    }
+});
 
 dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
@@ -594,11 +616,16 @@ function handleFile(file) {
     }
 
     const needsConversion = isHeifFormat(file);
+    encodeBtn.disabled = true;
+    resultContainer.classList.add('hidden');
 
     // Show UI immediately
     const dataUrlReader = new FileReader();
     dataUrlReader.onload = (e) => {
         imagePreview.src = e.target.result;
+        imagePreview.style.display = 'block';
+        const previousPreview = document.getElementById('palette-preview-canvas');
+        if (previousPreview) previousPreview.style.display = 'none';
         previewContainer.classList.remove('hidden');
         settingsContainer.classList.remove('hidden');
         compressionContainer.classList.remove('hidden');
@@ -608,7 +635,6 @@ function handleFile(file) {
         dropZone.classList.add('hidden');
         savePreviewBtn.classList.remove('hidden');
         syncAdjustmentUI();
-        encodeBtn.disabled = !wasmInitialized;
         if (wasmInitialized) {
             updatePaletteUI();
         }
@@ -619,6 +645,7 @@ function handleFile(file) {
         // HEIF/HEIC: convert via canvas to PNG buffer
         convertToPngBuffer(file).then(pngBuffer => {
             initImageSession(pngBuffer);
+            encodeBtn.disabled = !wasmInitialized;
             if (wasmInitialized) {
                 const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
                 renderPalettePreview(effectiveId);
@@ -631,6 +658,7 @@ function handleFile(file) {
         const arrayBufferReader = new FileReader();
         arrayBufferReader.onload = (e) => {
             initImageSession(new Uint8Array(e.target.result));
+            encodeBtn.disabled = !wasmInitialized;
             if (wasmInitialized) {
                 const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
                 renderPalettePreview(effectiveId);
@@ -648,12 +676,18 @@ function getChunkLimit() {
 }
 
 // Encoding Logic
-encodeBtn.addEventListener('click', () => {
+encodeBtn.addEventListener('click', async () => {
     if (!imageSession) return;
 
     try {
         encodeBtn.disabled = true;
-        encodeBtn.textContent = 'Encoding...';
+        encodeBtn.setAttribute('aria-busy', 'true');
+        encodeBtn.innerHTML = '<span class="btn-label">ENCODING PIXELS</span><span aria-hidden="true">•••</span>';
+        appRoot.classList.add('is-encoding');
+        resultContainer.classList.add('hidden');
+
+        // Give the stepped dither overlay one full paint before the synchronous Wasm work begins.
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
         const maxDimension = parseInt(qualitySelect.value, 10);
         const useBrotli = compressionSelect.value === 'brotli';
@@ -703,9 +737,7 @@ encodeBtn.addEventListener('click', () => {
 
             chunkButtons.innerHTML = '';
             const info = document.createElement('p');
-            info.style.color = 'var(--secondary-color)';
-            info.style.fontSize = '0.85rem';
-            info.style.marginBottom = '0.25rem';
+            info.className = 'chunk-info';
             info.textContent = `Split into ${total} parts for sharing:`;
             chunkButtons.appendChild(info);
 
@@ -756,8 +788,17 @@ encodeBtn.addEventListener('click', () => {
         console.error("Encoding error:", e);
         alert("Failed to encode image. See console.");
     } finally {
+        appRoot.classList.remove('is-encoding');
         encodeBtn.disabled = false;
-        encodeBtn.textContent = 'Generate Magic Link';
+        encodeBtn.removeAttribute('aria-busy');
+        encodeBtn.innerHTML = '<span class="btn-label">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>';
+
+        if (!resultContainer.classList.contains('hidden')) {
+            requestAnimationFrame(() => {
+                const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                resultContainer.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+            });
+        }
     }
 });
 

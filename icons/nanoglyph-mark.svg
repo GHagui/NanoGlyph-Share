@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc" shape-rendering="crispEdges">
+  <title id="title">NanoGlyph pixel beacon</title>
+  <desc id="desc">A blocky N monogram built from pixels with a transmission trail.</desc>
+
+  <rect width="512" height="512" fill="#6d35f2"/>
+  <rect x="24" y="24" width="464" height="464" fill="#111111"/>
+  <rect x="48" y="48" width="416" height="416" fill="#6d35f2"/>
+
+  <!-- Dithered signal field: the mark is not a QR code, but a glyph in motion. -->
+  <g fill="#f3f0e8">
+    <rect x="72" y="72" width="16" height="16"/>
+    <rect x="96" y="72" width="16" height="16" opacity=".45"/>
+    <rect x="120" y="72" width="16" height="16" opacity=".18"/>
+    <rect x="400" y="72" width="16" height="16" opacity=".62"/>
+    <rect x="424" y="72" width="16" height="16" opacity=".28"/>
+    <rect x="424" y="96" width="16" height="16" opacity=".62"/>
+    <rect x="448" y="96" width="8" height="8" opacity=".28"/>
+    <rect x="72" y="400" width="16" height="16" opacity=".28"/>
+    <rect x="96" y="424" width="16" height="16" opacity=".62"/>
+    <rect x="120" y="424" width="16" height="16" opacity=".28"/>
+    <rect x="400" y="400" width="16" height="16" opacity=".42"/>
+    <rect x="424" y="424" width="16" height="16" opacity=".18"/>
+  </g>
+
+  <!-- Pixel-built N monogram. -->
+  <g fill="#f3f0e8">
+    <rect x="104" y="128" width="48" height="256"/>
+    <rect x="360" y="128" width="48" height="256"/>
+    <rect x="152" y="152" width="48" height="48"/>
+    <rect x="176" y="176" width="48" height="48"/>
+    <rect x="200" y="200" width="48" height="48"/>
+    <rect x="224" y="224" width="48" height="48"/>
+    <rect x="248" y="248" width="48" height="48"/>
+    <rect x="272" y="272" width="48" height="48"/>
+    <rect x="296" y="296" width="48" height="48"/>
+  </g>
+
+  <!-- Outgoing signal ticks. -->
+  <g fill="#111111">
+    <rect x="424" y="144" width="16" height="16"/>
+    <rect x="448" y="168" width="8" height="8"/>
+    <rect x="424" y="352" width="16" height="16"/>
+    <rect x="448" y="336" width="8" height="8"/>
+  </g>
+</svg>
