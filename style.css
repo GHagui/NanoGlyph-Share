@@ -571,19 +571,35 @@ select:hover {
 .message-box.fatal strong { color: white; }
 
 .palette-toggle-group {
-    display: inline-flex;
+    display: grid;
+    grid-template-columns: repeat(2, 54px);
+    flex: 0 0 auto;
     border: 2px solid var(--ink);
 }
 
+.control-heading > .palette-toggle-group {
+    display: grid;
+    grid-template-columns: repeat(2, 54px);
+    gap: 0;
+}
+
 .palette-toggle {
-    min-height: 28px;
-    padding: 4px 8px;
+    display: grid;
+    width: 54px;
+    min-width: 54px;
+    min-height: 32px;
+    padding: 5px 8px;
     border: 0;
+    border-radius: 0;
+    appearance: none;
     background: var(--paper-bright);
     color: var(--ink);
     font-size: 0.58rem;
     font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
     cursor: pointer;
+    place-items: center;
 }
 
 .palette-toggle + .palette-toggle {
