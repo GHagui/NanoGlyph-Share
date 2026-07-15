@@ -1,4 +1,4 @@
-import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=23';
+import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=24';
 
 // Clipboard helper with fallback for non-HTTPS contexts
 function copyToClipboard(text) {
@@ -110,6 +110,7 @@ const paletteNextBtn = document.getElementById('palette-next');
 const chunkButtons = document.getElementById('chunk-buttons');
 const savePngBtn = document.getElementById('save-png-btn');
 const actionBlock = document.getElementById('action-block');
+const desktopInfo = document.getElementById('desktop-info');
 const mobileEditor = document.getElementById('mobile-adjustment-editor');
 const mobileEditorInfo = document.getElementById('mobile-editor-info');
 const mobileEditorNew = document.getElementById('mobile-editor-new');
@@ -123,15 +124,15 @@ const mobileAdjustmentPrev = document.getElementById('mobile-adjustment-prev');
 const mobileAdjustmentNext = document.getElementById('mobile-adjustment-next');
 const mobilePageReset = document.getElementById('mobile-page-reset');
 const mobileInputStatus = document.getElementById('mobile-input-status');
-const mobileOnboarding = document.getElementById('mobile-onboarding');
-const mobileOnboardingCounter = document.getElementById('mobile-onboarding-counter');
-const mobileOnboardingArt = document.getElementById('mobile-onboarding-art');
-const mobileOnboardingEyebrow = document.getElementById('mobile-onboarding-eyebrow');
-const mobileOnboardingTitle = document.getElementById('mobile-onboarding-title');
-const mobileOnboardingCopy = document.getElementById('mobile-onboarding-copy');
-const mobileOnboardingSkip = document.getElementById('mobile-onboarding-skip');
-const mobileOnboardingPrev = document.getElementById('mobile-onboarding-prev');
-const mobileOnboardingNext = document.getElementById('mobile-onboarding-next');
+const onboardingDialog = document.getElementById('onboarding-dialog');
+const onboardingCounter = document.getElementById('onboarding-counter');
+const onboardingArt = document.getElementById('onboarding-art');
+const onboardingEyebrow = document.getElementById('onboarding-eyebrow');
+const onboardingTitle = document.getElementById('onboarding-title');
+const onboardingCopy = document.getElementById('onboarding-copy');
+const onboardingSkip = document.getElementById('onboarding-skip');
+const onboardingPrev = document.getElementById('onboarding-prev');
+const onboardingNext = document.getElementById('onboarding-next');
 const mobileReceivedDialog = document.getElementById('mobile-received-dialog');
 const mobileReceivedSlot = document.getElementById('mobile-received-slot');
 const decoderHomeMarker = document.createComment('nanoglyph-decoder-home');
@@ -158,8 +159,9 @@ let lastAutoPaletteId = 0;
 // ── Image adjustments + mobile workflow ───────────────────────────────────
 const ADJ_DEFAULTS = { exposure: 0, contrast: 0, saturation: 0, hue: 0, temperature: 0 };
 const mobileEditorMedia = window.matchMedia('(max-width: 560px)');
-const MOBILE_ONBOARDING_KEY = 'nanoglyph_mobile_onboarding_v1';
-const MOBILE_ONBOARDING_SLIDES = [
+const ONBOARDING_KEY = 'nanoglyph_onboarding_v1';
+const LEGACY_MOBILE_ONBOARDING_KEY = 'nanoglyph_mobile_onboarding_v1';
+const ONBOARDING_SLIDES = [
     {
         art: 'local',
         eyebrow: '01 / LOCAL SYSTEM',
@@ -170,7 +172,8 @@ const MOBILE_ONBOARDING_SLIDES = [
         art: 'lab',
         eyebrow: '02 / PIXEL LAB',
         title: 'TUNE EVERY PIXEL.',
-        copy: 'Use the arrows to move through full-screen adjustments, Color Matrix and image rotation.',
+        mobileCopy: 'Use the arrows to move through full-screen adjustments, Color Matrix and image rotation.',
+        desktopCopy: 'Use the image controls to adjust every detail, choose a Color Matrix and rotate the image.',
     },
     {
         art: 'transmit',
@@ -181,6 +184,7 @@ const MOBILE_ONBOARDING_SLIDES = [
 ];
 let activeOnboardingSlide = 0;
 let onboardingCompletedForSession = false;
+let onboardingTrigger = null;
 
 const MOBILE_ADJUSTMENTS = [
     {
@@ -307,58 +311,69 @@ function syncMobilePageValue() {
     syncMobilePresetState();
 }
 
-function hasCompletedMobileOnboarding() {
+function hasCompletedOnboarding() {
     if (onboardingCompletedForSession) return true;
     try {
-        return localStorage.getItem(MOBILE_ONBOARDING_KEY) === 'complete';
+        if (localStorage.getItem(ONBOARDING_KEY) === 'complete') return true;
+        if (localStorage.getItem(LEGACY_MOBILE_ONBOARDING_KEY) === 'complete') {
+            try {
+                localStorage.setItem(ONBOARDING_KEY, 'complete');
+            } catch (error) {
+                // The legacy value is still enough to honor the user's choice.
+            }
+            return true;
+        }
+        return false;
     } catch (error) {
         return false;
     }
 }
 
-function completeMobileOnboarding() {
+function completeOnboarding() {
     onboardingCompletedForSession = true;
     try {
-        localStorage.setItem(MOBILE_ONBOARDING_KEY, 'complete');
+        localStorage.setItem(ONBOARDING_KEY, 'complete');
     } catch (error) {
         // The in-memory flag still prevents repeat prompts for this session.
     }
 }
 
-function renderMobileOnboarding() {
-    const slide = MOBILE_ONBOARDING_SLIDES[activeOnboardingSlide];
-    mobileOnboardingCounter.textContent = `${String(activeOnboardingSlide + 1).padStart(2, '0')} / ${String(MOBILE_ONBOARDING_SLIDES.length).padStart(2, '0')}`;
-    mobileOnboardingArt.dataset.slide = slide.art;
-    mobileOnboardingEyebrow.textContent = slide.eyebrow;
-    mobileOnboardingTitle.textContent = slide.title;
-    mobileOnboardingCopy.textContent = slide.copy;
-    mobileOnboardingPrev.disabled = activeOnboardingSlide === 0;
-    mobileOnboardingNext.textContent = activeOnboardingSlide === MOBILE_ONBOARDING_SLIDES.length - 1
+function renderOnboarding() {
+    const slide = ONBOARDING_SLIDES[activeOnboardingSlide];
+    const contextualCopy = mobileEditorMedia.matches ? slide.mobileCopy : slide.desktopCopy;
+    onboardingCounter.textContent = `${String(activeOnboardingSlide + 1).padStart(2, '0')} / ${String(ONBOARDING_SLIDES.length).padStart(2, '0')}`;
+    onboardingArt.dataset.slide = slide.art;
+    onboardingEyebrow.textContent = slide.eyebrow;
+    onboardingTitle.textContent = slide.title;
+    onboardingCopy.textContent = contextualCopy || slide.copy;
+    onboardingPrev.disabled = activeOnboardingSlide === 0;
+    onboardingNext.textContent = activeOnboardingSlide === ONBOARDING_SLIDES.length - 1
         ? 'START →'
         : 'NEXT →';
 }
 
-function hideMobileOnboarding(markComplete = false, restoreFocus = true) {
-    if (markComplete) completeMobileOnboarding();
-    mobileOnboarding.classList.add('hidden');
-    mobileOnboarding.setAttribute('aria-hidden', 'true');
-    mobileEditor.classList.remove('onboarding-open');
-    mobileEditor.querySelectorAll('.mobile-editor-topbar, .mobile-preview-slot, .mobile-adjustment-dock')
-        .forEach(node => { node.inert = false; });
-    if (restoreFocus && mobileEditor.open) mobileEditorInfo.focus({ preventScroll: true });
+function hideOnboarding(markComplete = false, restoreFocus = true) {
+    if (markComplete) completeOnboarding();
+    if (onboardingDialog.open) onboardingDialog.close();
+    document.body.classList.remove('onboarding-open');
+    if (restoreFocus && onboardingTrigger?.isConnected) {
+        onboardingTrigger.focus({ preventScroll: true });
+    }
+    onboardingTrigger = null;
 }
 
-function showMobileOnboarding(force = false) {
-    if (!mobileEditorMedia.matches || !mobileEditor.open || mobileReceivedDialog.open) return;
-    if (!force && (window.location.hash.length > 1 || hasCompletedMobileOnboarding())) return;
+function showOnboarding(force = false) {
+    if (onboardingDialog.open || mobileReceivedDialog.open) return;
+    if (mobileEditorMedia.matches && !mobileEditor.open) return;
+    if (!force && (window.location.hash.length > 1 || hasCompletedOnboarding())) return;
+    onboardingTrigger = document.activeElement instanceof HTMLElement && document.activeElement !== document.body
+        ? document.activeElement
+        : null;
     activeOnboardingSlide = 0;
-    renderMobileOnboarding();
-    mobileOnboarding.classList.remove('hidden');
-    mobileOnboarding.setAttribute('aria-hidden', 'false');
-    mobileEditor.classList.add('onboarding-open');
-    mobileEditor.querySelectorAll('.mobile-editor-topbar, .mobile-preview-slot, .mobile-adjustment-dock')
-        .forEach(node => { node.inert = true; });
-    requestAnimationFrame(() => mobileOnboardingNext.focus({ preventScroll: true }));
+    renderOnboarding();
+    document.body.classList.add('onboarding-open');
+    onboardingDialog.showModal();
+    requestAnimationFrame(() => onboardingNext.focus({ preventScroll: true }));
 }
 
 function showMobilePage(index, focusControl = false) {
@@ -421,7 +436,6 @@ function showMobilePage(index, focusControl = false) {
 }
 
 function restoreMobileEditorNodes() {
-    hideMobileOnboarding(false, false);
     MOVABLE_MOBILE_NODES.forEach(restoreMobileNode);
     document.body.classList.remove('mobile-editor-open');
     adjustmentsToggle.setAttribute('aria-expanded', 'false');
@@ -444,7 +458,7 @@ function openMobileEditor(initialPage = activeMobilePage) {
     document.body.classList.add('mobile-editor-open');
     mobileEditor.showModal();
     showMobilePage(initialPage, false);
-    showMobileOnboarding(false);
+    showOnboarding(false);
 }
 
 function restoreMobileReceivedNode() {
@@ -652,21 +666,24 @@ function resetCurrentMobilePage() {
 mobilePageReset.addEventListener('click', resetCurrentMobilePage);
 mobileAdjustmentPrev.addEventListener('click', () => showMobilePage(activeMobilePage - 1, true));
 mobileAdjustmentNext.addEventListener('click', () => showMobilePage(activeMobilePage + 1, true));
-mobileEditorInfo.addEventListener('click', () => showMobileOnboarding(true));
-mobileOnboardingSkip.addEventListener('click', () => hideMobileOnboarding(true));
-mobileOnboardingPrev.addEventListener('click', () => {
+desktopInfo.addEventListener('click', () => showOnboarding(true));
+mobileEditorInfo.addEventListener('click', () => showOnboarding(true));
+onboardingSkip.addEventListener('click', () => hideOnboarding(true));
+onboardingPrev.addEventListener('click', () => {
     if (activeOnboardingSlide === 0) return;
     activeOnboardingSlide--;
-    renderMobileOnboarding();
+    renderOnboarding();
 });
-mobileOnboardingNext.addEventListener('click', () => {
-    if (activeOnboardingSlide === MOBILE_ONBOARDING_SLIDES.length - 1) {
-        hideMobileOnboarding(true);
+onboardingNext.addEventListener('click', () => {
+    if (activeOnboardingSlide === ONBOARDING_SLIDES.length - 1) {
+        hideOnboarding(true);
         return;
     }
     activeOnboardingSlide++;
-    renderMobileOnboarding();
+    renderOnboarding();
 });
+onboardingDialog.addEventListener('cancel', event => event.preventDefault());
+onboardingDialog.addEventListener('close', () => document.body.classList.remove('onboarding-open'));
 mobileEditorNew.addEventListener('click', () => resetProject());
 
 mobileEditor.addEventListener('cancel', event => {
@@ -680,7 +697,14 @@ mobileEditorMedia.addEventListener('change', event => {
         closeMobileEditor();
         closeMobileReceivedView();
     } else if (window.location.hash.length <= 1) {
+        const onboardingWasOpen = onboardingDialog.open;
+        if (onboardingWasOpen) onboardingDialog.close();
         openMobileEditor(activeMobilePage);
+        if (onboardingWasOpen && !onboardingDialog.open) showOnboarding(true);
+    }
+    if (onboardingDialog.open) {
+        onboardingTrigger = event.matches ? mobileEditorInfo : desktopInfo;
+        renderOnboarding();
     }
 });
 
@@ -1433,8 +1457,9 @@ document.getElementById('clear-cache-btn').addEventListener('click', async () =>
     }
 });
 
-// Initialize
-if (mobileEditorMedia.matches && window.location.hash.length <= 1) {
-    openMobileEditor(0);
+// Initialize the creator workflow and its first-run introduction.
+if (window.location.hash.length <= 1) {
+    if (mobileEditorMedia.matches) openMobileEditor(0);
+    else showOnboarding(false);
 }
 wasmReadyPromise = bootstrap();

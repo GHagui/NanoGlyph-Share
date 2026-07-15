@@ -8,7 +8,7 @@
     <meta name="description"
         content="NanoGlyph turns images into compact, shareable URLs entirely in your browser. No cloud, no upload, no server.">
     <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="./style.css?v=23">
+    <link rel="stylesheet" href="./style.css?v=24">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <meta name="theme-color" content="#f3f0e8">
@@ -28,6 +28,8 @@
                 </a>
 
                 <div class="system-flags" aria-label="Application properties">
+                    <button type="button" id="desktop-info" class="system-info"
+                        aria-label="Open NanoGlyph introduction">INFO</button>
                     <span><i class="status-dot" aria-hidden="true"></i> OFFLINE</span>
                     <span>ZERO SERVER</span>
                 </div>
@@ -347,31 +349,34 @@
                 </div>
             </section>
 
-            <section id="mobile-onboarding" class="mobile-onboarding hidden" aria-hidden="true"
-                aria-labelledby="mobile-onboarding-title">
-                <header class="mobile-onboarding-topbar">
-                    <span id="mobile-onboarding-counter">01 / 03</span>
-                    <button type="button" id="mobile-onboarding-skip">SKIP ×</button>
-                </header>
+        </div>
+    </dialog>
 
-                <div class="mobile-onboarding-body">
-                    <div id="mobile-onboarding-art" class="mobile-onboarding-art" data-slide="local"
-                        aria-hidden="true">
-                        <span></span><span></span><span></span><span></span>
-                        <span></span><span></span><span></span><span></span>
-                        <span></span><span></span><span></span><span></span>
-                        <span></span><span></span><span></span><span></span>
-                    </div>
-                    <p id="mobile-onboarding-eyebrow" class="mobile-onboarding-eyebrow">01 / LOCAL SYSTEM</p>
-                    <h2 id="mobile-onboarding-title">NO CLOUD. EVER.</h2>
-                    <p id="mobile-onboarding-copy">Your photos stay on this device. Even HEIF conversion happens locally.</p>
+    <dialog id="onboarding-dialog" class="onboarding-dialog" aria-labelledby="onboarding-title">
+        <div class="onboarding-shell">
+            <header class="onboarding-topbar">
+                <span id="onboarding-counter">01 / 03</span>
+                <button type="button" id="onboarding-skip">SKIP ×</button>
+            </header>
+
+            <div class="onboarding-body">
+                <div id="onboarding-art" class="onboarding-art" data-slide="local" aria-hidden="true">
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
+                    <span></span><span></span><span></span><span></span>
                 </div>
+                <div class="onboarding-copy-panel">
+                    <p id="onboarding-eyebrow" class="onboarding-eyebrow">01 / LOCAL SYSTEM</p>
+                    <h2 id="onboarding-title">NO CLOUD. EVER.</h2>
+                    <p id="onboarding-copy">Your photos stay on this device. Even HEIF conversion happens locally.</p>
+                </div>
+            </div>
 
-                <footer class="mobile-onboarding-actions">
-                    <button type="button" id="mobile-onboarding-prev" aria-label="Previous introduction screen">←</button>
-                    <button type="button" id="mobile-onboarding-next">NEXT →</button>
-                </footer>
-            </section>
+            <footer class="onboarding-actions">
+                <button type="button" id="onboarding-prev" aria-label="Previous introduction screen">←</button>
+                <button type="button" id="onboarding-next">NEXT →</button>
+            </footer>
         </div>
     </dialog>
 
@@ -387,7 +392,7 @@
         </div>
     </dialog>
 
-    <script type="module" src="./app.js?v=23"></script>
+    <script type="module" src="./app.js?v=24"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js')
