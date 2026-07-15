@@ -1169,14 +1169,35 @@ footer {
 
     .editor-workspace {
         grid-template-columns: 1fr;
+        align-items: start;
     }
 
     .preview-panel {
-        position: static;
+        position: sticky;
+        z-index: 30;
+        top: calc(env(safe-area-inset-top, 0px) + 8px);
+        align-self: start;
+        padding-bottom: 10px;
+        border-bottom: 3px solid var(--ink);
+        background: var(--paper-bright);
+        box-shadow: 0 10px 0 var(--paper-bright);
     }
 
     .preview-frame {
-        min-height: 300px;
+        height: clamp(210px, 36svh, 300px);
+        min-height: 0;
+    }
+
+    #image-preview,
+    #palette-preview-canvas {
+        width: 100%;
+        height: 100%;
+        max-height: none;
+        object-fit: contain;
+    }
+
+    .control-block {
+        scroll-margin-top: 370px;
     }
 }
 
@@ -1262,7 +1283,12 @@ footer {
     }
 
     .preview-frame {
-        min-height: 240px;
+        height: clamp(190px, 30svh, 250px);
+        min-height: 0;
+    }
+
+    .control-block {
+        scroll-margin-top: calc(clamp(190px, 30svh, 250px) + 82px);
     }
 
     .action-block,
