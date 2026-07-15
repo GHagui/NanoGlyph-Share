@@ -8,7 +8,7 @@
     <meta name="description"
         content="NanoGlyph turns images into compact, shareable URLs entirely in your browser. No cloud, no upload, no server.">
     <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="./style.css?v=24">
+    <link rel="stylesheet" href="./style.css?v=25">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <meta name="theme-color" content="#f3f0e8">
@@ -355,8 +355,8 @@
     <dialog id="onboarding-dialog" class="onboarding-dialog" aria-labelledby="onboarding-title">
         <div class="onboarding-shell">
             <header class="onboarding-topbar">
-                <span id="onboarding-counter">01 / 03</span>
-                <button type="button" id="onboarding-skip">SKIP ×</button>
+                <span id="onboarding-counter">01 / 05</span>
+                <button type="button" id="onboarding-skip">SKIP TUTORIAL ×</button>
             </header>
 
             <div class="onboarding-body">
@@ -367,15 +367,16 @@
                     <span></span><span></span><span></span><span></span>
                 </div>
                 <div class="onboarding-copy-panel">
-                    <p id="onboarding-eyebrow" class="onboarding-eyebrow">01 / LOCAL SYSTEM</p>
-                    <h2 id="onboarding-title">NO CLOUD. EVER.</h2>
-                    <p id="onboarding-copy">Your photos stay on this device. Even HEIF conversion happens locally.</p>
+                    <p id="onboarding-eyebrow" class="onboarding-eyebrow">01 / WHAT THIS APP DOES</p>
+                    <h2 id="onboarding-title">PHOTO AS A LINK.</h2>
+                    <p id="onboarding-copy">NanoGlyph puts a small version of your photo inside a web link. Send that link in any chat instead of uploading the photo.</p>
+                    <p id="onboarding-hint" class="onboarding-hint">YOUR ORIGINAL PHOTO NEVER LEAVES THIS DEVICE.</p>
                 </div>
             </div>
 
             <footer class="onboarding-actions">
                 <button type="button" id="onboarding-prev" aria-label="Previous introduction screen">←</button>
-                <button type="button" id="onboarding-next">NEXT →</button>
+                <button type="button" id="onboarding-next">NEXT STEP →</button>
             </footer>
         </div>
     </dialog>
@@ -392,7 +393,7 @@
         </div>
     </dialog>
 
-    <script type="module" src="./app.js?v=24"></script>
+    <script type="module" src="./app.js?v=25"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js')

@@ -1883,6 +1883,16 @@ body.onboarding-open {
     animation-name: onboarding-transmit;
 }
 
+.onboarding-art[data-slide="receive"] {
+    background: var(--violet);
+    box-shadow: 7px 7px 0 var(--ink);
+}
+
+.onboarding-art[data-slide="receive"] span {
+    background: var(--paper-bright);
+    animation-name: onboarding-receive;
+}
+
 @keyframes onboarding-local {
     0%, 24% { opacity: 0.15; }
     25%, 74% { opacity: 0.55; }
@@ -1899,6 +1909,12 @@ body.onboarding-open {
     0%, 24% { transform: translateX(-7px); opacity: 0.2; }
     25%, 74% { transform: translateX(0); opacity: 0.65; }
     75%, 100% { transform: translateX(7px); opacity: 1; background: var(--violet); }
+}
+
+@keyframes onboarding-receive {
+    0%, 24% { transform: translateX(7px); opacity: 0.2; }
+    25%, 74% { transform: translateX(0); opacity: 0.65; }
+    75%, 100% { transform: translateX(-7px); opacity: 1; background: var(--ink); }
 }
 
 .onboarding-copy-panel {
@@ -1927,6 +1943,18 @@ body.onboarding-open {
     color: var(--ink-soft);
     font-size: clamp(0.72rem, 1.3vw, 0.86rem);
     font-weight: 750;
+}
+
+.onboarding-hint {
+    margin-top: 18px;
+    padding: 9px 11px;
+    border-left: 5px solid var(--violet);
+    background: var(--ink);
+    color: white;
+    font-size: clamp(0.56rem, 1vw, 0.65rem);
+    font-weight: 900;
+    letter-spacing: 0.035em;
+    line-height: 1.35;
 }
 
 .onboarding-actions {
@@ -2009,6 +2037,11 @@ body.onboarding-open {
         font-size: clamp(0.7rem, 3.1vw, 0.82rem);
     }
 
+    .onboarding-hint {
+        margin-top: 13px;
+        font-size: clamp(0.54rem, 2.5vw, 0.63rem);
+    }
+
     .onboarding-actions {
         padding: 12px 19px calc(19px + env(safe-area-inset-bottom, 0px)) 14px;
     }
@@ -2020,7 +2053,7 @@ body.onboarding-open {
     }
 
     .onboarding-art {
-        width: min(37dvh, 210px);
+        width: min(32dvh, 185px);
         margin-bottom: 14px;
     }
 
@@ -2034,6 +2067,11 @@ body.onboarding-open {
 
     #onboarding-copy {
         margin-top: 9px;
+    }
+
+    .onboarding-hint {
+        margin-top: 9px;
+        padding-block: 7px;
     }
 
     .onboarding-actions button {

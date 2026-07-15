@@ -1,9 +1,9 @@
-const CACHE_NAME = 'nanoglyph-v24';
+const CACHE_NAME = 'nanoglyph-v25';
 const ASSETS = [
     './',
     './index.html',
-    './style.css?v=24',
-    './app.js?v=24',
+    './style.css?v=25',
+    './app.js?v=25',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
@@ -13,7 +13,7 @@ const ASSETS = [
     './icons/instagram.svg',
     './icons/github.svg',
     './nanoglyph_core/pkg/nanoglyph_core_bg.wasm',
-    './nanoglyph_core/pkg/nanoglyph_core.js?v=24',
+    './nanoglyph_core/pkg/nanoglyph_core.js?v=25',
     './vendor/heic-to-1.5.2.min.js',
     './vendor/heic-to-LICENSE.txt'
 ];

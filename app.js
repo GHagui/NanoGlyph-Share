@@ -1,4 +1,4 @@
-import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=24';
+import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=25';
 
 // Clipboard helper with fallback for non-HTTPS contexts
 function copyToClipboard(text) {
@@ -130,6 +130,7 @@ const onboardingArt = document.getElementById('onboarding-art');
 const onboardingEyebrow = document.getElementById('onboarding-eyebrow');
 const onboardingTitle = document.getElementById('onboarding-title');
 const onboardingCopy = document.getElementById('onboarding-copy');
+const onboardingHint = document.getElementById('onboarding-hint');
 const onboardingSkip = document.getElementById('onboarding-skip');
 const onboardingPrev = document.getElementById('onboarding-prev');
 const onboardingNext = document.getElementById('onboarding-next');
@@ -164,22 +165,40 @@ const LEGACY_MOBILE_ONBOARDING_KEY = 'nanoglyph_mobile_onboarding_v1';
 const ONBOARDING_SLIDES = [
     {
         art: 'local',
-        eyebrow: '01 / LOCAL SYSTEM',
-        title: 'NO CLOUD. EVER.',
-        copy: 'Your photos stay on this device. Even HEIF conversion happens locally.',
+        eyebrow: '01 / WHAT THIS APP DOES',
+        title: 'PHOTO AS A LINK.',
+        copy: 'NanoGlyph puts a small version of your photo inside a web link. Send that link in any chat instead of uploading the photo.',
+        hint: 'YOUR ORIGINAL PHOTO NEVER LEAVES THIS DEVICE.',
     },
     {
         art: 'lab',
-        eyebrow: '02 / PIXEL LAB',
-        title: 'TUNE EVERY PIXEL.',
-        mobileCopy: 'Use the arrows to move through full-screen adjustments, Color Matrix and image rotation.',
-        desktopCopy: 'Use the image controls to adjust every detail, choose a Color Matrix and rotate the image.',
+        eyebrow: '02 / CHOOSE',
+        title: 'CHOOSE A PHOTO.',
+        mobileCopy: 'Tap SELECT FILE and choose a photo. Check the preview, then use → to move through the options.',
+        desktopCopy: 'Click SELECT FILE or drag a photo into the box. Check the preview; changing the image settings is optional.',
+        hint: 'NOT SURE WHAT TO CHANGE? KEEP THE DEFAULT SETTINGS.',
+    },
+    {
+        art: 'local',
+        eyebrow: '03 / CREATE',
+        title: 'CREATE THE LINK.',
+        mobileCopy: 'Keep using → until the last screen, then tap ENCODE MAGIC LINK. Wait for the sharing buttons to appear.',
+        desktopCopy: 'After choosing a photo, scroll to the bottom and click ENCODE MAGIC LINK. Wait for the sharing buttons to appear.',
+        hint: 'KEEP THIS PAGE OPEN UNTIL THE LINK IS READY.',
     },
     {
         art: 'transmit',
-        eyebrow: '03 / TRANSMIT',
-        title: 'SEND THE GLYPH.',
-        copy: 'Choose a transmission route, generate a compact link or download the pixel PNG.',
+        eyebrow: '04 / SHARE',
+        title: 'SEND EVERY PART.',
+        copy: 'Use SHARE LINK or COPY LINK. If buttons named Part 1, Part 2 and more appear, send every part to the same person.',
+        hint: 'IF ONE PART IS MISSING, THE PHOTO CANNOT OPEN.',
+    },
+    {
+        art: 'receive',
+        eyebrow: '05 / RECEIVE',
+        title: 'OPEN THE PHOTO.',
+        copy: 'Open the link. If there are several parts, open every part on the same phone or computer. Do not switch between Chrome, Safari or another browser. The photo appears after the last part.',
+        hint: 'NO APP OR ACCOUNT IS NEEDED. YOU CAN THEN SAVE THE PHOTO.',
     },
 ];
 let activeOnboardingSlide = 0;
@@ -346,10 +365,11 @@ function renderOnboarding() {
     onboardingEyebrow.textContent = slide.eyebrow;
     onboardingTitle.textContent = slide.title;
     onboardingCopy.textContent = contextualCopy || slide.copy;
+    onboardingHint.textContent = slide.hint;
     onboardingPrev.disabled = activeOnboardingSlide === 0;
     onboardingNext.textContent = activeOnboardingSlide === ONBOARDING_SLIDES.length - 1
-        ? 'START →'
-        : 'NEXT →';
+        ? 'START USING →'
+        : 'NEXT STEP →';
 }
 
 function hideOnboarding(markComplete = false, restoreFocus = true) {
