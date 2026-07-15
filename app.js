@@ -1,4 +1,4 @@
-import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=21';
+import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=22';
 
 // Clipboard helper with fallback for non-HTTPS contexts
 function copyToClipboard(text) {
@@ -59,6 +59,7 @@ function saveCanvasAsUpscaledPng(sourceCanvas, filename, successCallback) {
 }
 
 let wasmInitialized = false;
+let wasmReadyPromise = null;
 
 // DOM Elements
 const encoderView = document.getElementById('encoder-view');
@@ -74,6 +75,13 @@ const settingsContainer = document.getElementById('settings-container');
 const qualitySelect = document.getElementById('quality-select');
 const compressionContainer = document.getElementById('compression-container');
 const compressionSelect = document.getElementById('compression-select');
+const transformContainer = document.getElementById('transform-container');
+const transformLeftBtn = document.getElementById('transform-left');
+const transformRightBtn = document.getElementById('transform-right');
+const transformFlipHorizontalBtn = document.getElementById('transform-flip-horizontal');
+const transformFlipVerticalBtn = document.getElementById('transform-flip-vertical');
+const transformResetBtn = document.getElementById('transform-reset');
+const transformStatus = document.getElementById('transform-status');
 const adjustmentsContainer = document.getElementById('adjustments-container');
 const adjustmentsToggle = document.getElementById('adjustments-toggle');
 const adjustmentsBody = document.getElementById('adjustments-body');
@@ -101,26 +109,38 @@ const palettePrevBtn = document.getElementById('palette-prev');
 const paletteNextBtn = document.getElementById('palette-next');
 const chunkButtons = document.getElementById('chunk-buttons');
 const savePngBtn = document.getElementById('save-png-btn');
+const actionBlock = document.getElementById('action-block');
 const mobileEditor = document.getElementById('mobile-adjustment-editor');
-const mobileEditorDone = document.getElementById('mobile-editor-done');
+const mobileEditorNew = document.getElementById('mobile-editor-new');
 const mobilePreviewSlot = document.getElementById('mobile-preview-slot');
-const mobileAdjustmentsSlot = document.getElementById('mobile-adjustments-slot');
+const mobilePageSlot = document.getElementById('mobile-page-slot');
 const mobileAdjustmentCounter = document.getElementById('mobile-adjustment-counter');
 const mobileAdjustmentTitle = document.getElementById('mobile-adjustment-title');
 const mobileAdjustmentValue = document.getElementById('mobile-adjustment-value');
 const mobileAdjustmentPresets = document.getElementById('mobile-adjustment-presets');
 const mobileAdjustmentPrev = document.getElementById('mobile-adjustment-prev');
 const mobileAdjustmentNext = document.getElementById('mobile-adjustment-next');
-const mobileAdjustmentResetAll = document.getElementById('mobile-adjustment-reset-all');
+const mobilePageReset = document.getElementById('mobile-page-reset');
+const mobileInputStatus = document.getElementById('mobile-input-status');
+const mobileColorRail = document.getElementById('mobile-color-rail');
+const mobileColorSwatches = document.getElementById('mobile-color-swatches');
+const mobileColorLabel = document.getElementById('mobile-color-label');
+const mobileReceivedDialog = document.getElementById('mobile-received-dialog');
+const mobileReceivedSlot = document.getElementById('mobile-received-slot');
+const decoderHomeMarker = document.createComment('nanoglyph-decoder-home');
+decoderView.before(decoderHomeMarker);
 
 let selectedFileBuffer = null;
 let imageSession = null;
+let currentPreviewObjectUrl = null;
+let heicLoaderPromise = null;
 
 function initImageSession(buffer) {
     if (imageSession) {
         try { imageSession.free(); } catch (e) { }
     }
     imageSession = new ImageSession(buffer);
+    imageSession.set_transform(rotationQuarterTurns, flipHorizontal, flipVertical);
     selectedFileBuffer = buffer;
 }
 let selectedPlatformLimit = 4096; // default: WhatsApp
@@ -128,13 +148,9 @@ let currentPaletteId = -1; // -1 = auto-detect
 let paletteAutoMode = true;
 let lastAutoPaletteId = 0;
 
-// ── Image Adjustments ──────────────────────────────────────────────────────
+// ── Image adjustments + mobile workflow ───────────────────────────────────
 const ADJ_DEFAULTS = { exposure: 0, contrast: 0, saturation: 0, hue: 0, temperature: 0 };
 const mobileEditorMedia = window.matchMedia('(max-width: 560px)');
-const previewHomeMarker = document.createComment('nanoglyph-preview-home');
-const adjustmentsHomeMarker = document.createComment('nanoglyph-adjustments-home');
-previewContainer.before(previewHomeMarker);
-adjustmentsContainer.before(adjustmentsHomeMarker);
 
 const MOBILE_ADJUSTMENTS = [
     {
@@ -163,8 +179,57 @@ MOBILE_ADJUSTMENTS.forEach(adjustment => {
     adjustment.row = adjustment.slider.closest('.adj-row');
 });
 
-let activeMobileAdjustment = 0;
-let restoreMobileEditorFocus = true;
+const MOBILE_PAGES = [
+    { key: 'input', label: 'IMAGE INPUT', value: () => imageSession ? 'READY' : 'SELECT' },
+    { key: 'scale', label: 'OUTPUT SCALE', nodes: [settingsContainer], value: () => `${qualitySelect.value} PX` },
+    { key: 'palette', label: 'COLOR MATRIX', nodes: [paletteContainer], value: () => paletteAutoMode ? 'AUTO' : `#${currentPaletteId}` },
+    { key: 'transform', label: 'TRANSFORM IMAGE', nodes: [transformContainer], value: () => `${rotationQuarterTurns * 90}°` },
+    ...MOBILE_ADJUSTMENTS.map(adjustment => ({
+        key: adjustment.key,
+        label: adjustment.label,
+        nodes: [adjustmentsContainer],
+        adjustment,
+        value: () => formatAdjustmentValue(adjustment),
+    })),
+    { key: 'compression', label: 'COMPRESSION', nodes: [compressionContainer], value: () => compressionSelect.value.toUpperCase() },
+    { key: 'route', label: 'TRANSMISSION ROUTE', nodes: [platformContainer], value: () => getSelectedPlatformName().toUpperCase() },
+    { key: 'export', label: 'EXPORT GLYPH', nodes: [actionBlock, resultContainer], value: () => resultContainer.classList.contains('hidden') ? 'READY' : 'DONE' },
+];
+
+const MOVABLE_MOBILE_NODES = [
+    dropZone,
+    previewContainer,
+    settingsContainer,
+    paletteContainer,
+    transformContainer,
+    adjustmentsContainer,
+    compressionContainer,
+    platformContainer,
+    actionBlock,
+    resultContainer,
+];
+const mobileHomeMarkers = new Map();
+MOVABLE_MOBILE_NODES.forEach(node => {
+    const marker = document.createComment(`nanoglyph-${node.id || 'node'}-home`);
+    node.before(marker);
+    mobileHomeMarkers.set(node, marker);
+});
+
+let activeMobilePage = 0;
+let rotationQuarterTurns = 0;
+let flipHorizontal = false;
+let flipVertical = false;
+
+function restoreMobileNode(node) {
+    const marker = mobileHomeMarkers.get(node);
+    if (marker?.parentNode && node.parentNode !== marker.parentNode) {
+        marker.parentNode.insertBefore(node, marker.nextSibling);
+    }
+}
+
+function getSelectedPlatformName() {
+    return platformGrid.querySelector('.platform-btn.selected .platform-name')?.textContent || 'WhatsApp';
+}
 
 function formatAdjustmentValue(adjustment) {
     const value = parseInt(adjustment.slider.value, 10);
@@ -174,7 +239,8 @@ function formatAdjustmentValue(adjustment) {
 
 function syncMobilePresetState() {
     if (!mobileEditor.open) return;
-    const adjustment = MOBILE_ADJUSTMENTS[activeMobileAdjustment];
+    const adjustment = MOBILE_PAGES[activeMobilePage]?.adjustment;
+    if (!adjustment) return;
     const value = parseInt(adjustment.slider.value, 10);
 
     mobileAdjustmentValue.textContent = formatAdjustmentValue(adjustment);
@@ -204,36 +270,91 @@ function renderMobilePresets(adjustment) {
     });
 }
 
-function showMobileAdjustment(index, focusSlider = false) {
-    activeMobileAdjustment = Math.max(0, Math.min(index, MOBILE_ADJUSTMENTS.length - 1));
-    const adjustment = MOBILE_ADJUSTMENTS[activeMobileAdjustment];
+function syncMobilePageValue() {
+    if (!mobileEditor.open) return;
+    const page = MOBILE_PAGES[activeMobilePage];
+    mobileAdjustmentValue.textContent = page.value?.() || '';
+    syncMobilePresetState();
+}
 
-    MOBILE_ADJUSTMENTS.forEach((item, itemIndex) => {
-        const active = itemIndex === activeMobileAdjustment;
+function updateMobileColorRail(paletteId = lastAutoPaletteId) {
+    mobileColorSwatches.innerHTML = '';
+    const colors = wasmInitialized
+        ? get_palette_colors(Math.max(0, Math.min(98, paletteId)))
+        : new Uint8Array(24).fill(68);
+    for (let index = 0; index < 8; index++) {
+        const swatch = document.createElement('span');
+        swatch.style.backgroundColor = `rgb(${colors[index * 3]}, ${colors[index * 3 + 1]}, ${colors[index * 3 + 2]})`;
+        mobileColorSwatches.appendChild(swatch);
+    }
+    mobileColorRail.disabled = !imageSession;
+    mobileColorLabel.textContent = imageSession
+        ? `COLOR MATRIX / ${paletteAutoMode ? `AUTO #${lastAutoPaletteId}` : `MANUAL #${currentPaletteId}`}`
+        : 'COLOR MATRIX / WAITING';
+}
+
+function showMobilePage(index, focusControl = false) {
+    if (!mobileEditor.open) return;
+    if (!imageSession && index > 0) index = 0;
+    activeMobilePage = Math.max(0, Math.min(index, MOBILE_PAGES.length - 1));
+    const page = MOBILE_PAGES[activeMobilePage];
+
+    MOBILE_PAGES.forEach(item => item.nodes?.forEach(restoreMobileNode));
+    restoreMobileNode(dropZone);
+    restoreMobileNode(previewContainer);
+    MOBILE_ADJUSTMENTS.forEach(item => {
+        const active = item === page.adjustment;
         item.row.classList.toggle('mobile-active', active);
         item.row.setAttribute('aria-hidden', String(!active));
     });
 
-    mobileAdjustmentCounter.textContent = `ADJUST ${String(activeMobileAdjustment + 1).padStart(2, '0')} / 05`;
-    mobileAdjustmentTitle.textContent = adjustment.label;
-    mobileAdjustmentPrev.disabled = activeMobileAdjustment === 0;
-    mobileAdjustmentNext.disabled = activeMobileAdjustment === MOBILE_ADJUSTMENTS.length - 1;
-    renderMobilePresets(adjustment);
-    syncMobilePresetState();
+    if (!imageSession && page.key === 'input') {
+        dropZone.classList.remove('hidden');
+        mobilePreviewSlot.appendChild(dropZone);
+    } else if (imageSession) {
+        dropZone.classList.add('hidden');
+        previewContainer.classList.remove('hidden');
+        mobilePreviewSlot.appendChild(previewContainer);
+    }
 
-    if (focusSlider) {
-        requestAnimationFrame(() => adjustment.slider.focus({ preventScroll: true }));
+    page.nodes?.forEach(node => {
+        if (node !== resultContainer) node.classList.remove('hidden');
+        mobilePageSlot.appendChild(node);
+    });
+
+    if (page.adjustment) {
+        adjustmentsToggle.setAttribute('aria-expanded', 'true');
+        adjustmentsBody.setAttribute('aria-hidden', 'false');
+        adjustmentsBody.classList.add('open');
+        renderMobilePresets(page.adjustment);
+        mobileAdjustmentPresets.classList.remove('hidden');
+    } else {
+        mobileAdjustmentPresets.innerHTML = '';
+        mobileAdjustmentPresets.classList.add('hidden');
+    }
+
+    mobileEditor.classList.toggle('mobile-input-page', page.key === 'input');
+    mobileEditor.classList.toggle('mobile-no-image', !imageSession);
+    mobileEditor.classList.toggle('mobile-export-page', page.key === 'export');
+    mobileAdjustmentCounter.textContent = `STEP ${String(activeMobilePage + 1).padStart(2, '0')} / ${MOBILE_PAGES.length}`;
+    mobileAdjustmentTitle.textContent = page.label;
+    mobileAdjustmentPrev.disabled = activeMobilePage === 0;
+    mobileAdjustmentNext.disabled = !imageSession || activeMobilePage === MOBILE_PAGES.length - 1;
+    mobilePageReset.classList.toggle('hidden', page.key === 'input' || page.key === 'export');
+    mobileEditorNew.classList.toggle('hidden', !imageSession);
+    mobileInputStatus.classList.toggle('hidden', page.key !== 'input' || !mobileInputStatus.textContent);
+    syncMobilePageValue();
+    updateMobileColorRail();
+    mobilePageSlot.scrollTop = 0;
+
+    if (focusControl) {
+        const target = page.adjustment?.slider || mobilePageSlot.querySelector('select, button:not(.hidden), input');
+        requestAnimationFrame(() => target?.focus({ preventScroll: true }));
     }
 }
 
 function restoreMobileEditorNodes() {
-    if (previewHomeMarker.parentNode && previewContainer.parentNode !== previewHomeMarker.parentNode) {
-        previewHomeMarker.parentNode.insertBefore(previewContainer, previewHomeMarker.nextSibling);
-    }
-    if (adjustmentsHomeMarker.parentNode && adjustmentsContainer.parentNode !== adjustmentsHomeMarker.parentNode) {
-        adjustmentsHomeMarker.parentNode.insertBefore(adjustmentsContainer, adjustmentsHomeMarker.nextSibling);
-    }
-
+    MOVABLE_MOBILE_NODES.forEach(restoreMobileNode);
     document.body.classList.remove('mobile-editor-open');
     adjustmentsToggle.setAttribute('aria-expanded', 'false');
     adjustmentsBody.setAttribute('aria-hidden', 'true');
@@ -243,30 +364,43 @@ function restoreMobileEditorNodes() {
         item.row.removeAttribute('aria-hidden');
     });
 
-    if (restoreMobileEditorFocus && mobileEditorMedia.matches) {
-        adjustmentsToggle.focus({ preventScroll: true });
-    }
 }
 
-function closeMobileEditor(shouldRestoreFocus = true) {
+function closeMobileEditor() {
     if (!mobileEditor.open) return;
-    restoreMobileEditorFocus = shouldRestoreFocus;
     mobileEditor.close();
 }
 
-function openMobileEditor() {
-    if (!mobileEditorMedia.matches || mobileEditor.open || previewContainer.classList.contains('hidden')) return;
-
-    mobilePreviewSlot.appendChild(previewContainer);
-    mobileAdjustmentsSlot.appendChild(adjustmentsContainer);
-    adjustmentsToggle.setAttribute('aria-expanded', 'true');
-    adjustmentsBody.setAttribute('aria-hidden', 'false');
-    adjustmentsBody.classList.add('open');
+function openMobileEditor(initialPage = activeMobilePage) {
+    if (!mobileEditorMedia.matches || mobileEditor.open || mobileReceivedDialog.open) return;
     document.body.classList.add('mobile-editor-open');
-    restoreMobileEditorFocus = true;
     mobileEditor.showModal();
-    showMobileAdjustment(0, true);
+    showMobilePage(initialPage, false);
 }
+
+function restoreMobileReceivedNode() {
+    if (decoderHomeMarker.parentNode && decoderView.parentNode !== decoderHomeMarker.parentNode) {
+        decoderHomeMarker.parentNode.insertBefore(decoderView, decoderHomeMarker.nextSibling);
+    }
+    document.body.classList.remove('mobile-received-open');
+}
+
+function closeMobileReceivedView() {
+    if (mobileReceivedDialog.open) mobileReceivedDialog.close();
+    else restoreMobileReceivedNode();
+}
+
+function openMobileReceivedView() {
+    if (!mobileEditorMedia.matches) return;
+    closeMobileEditor();
+    decoderView.classList.remove('hidden');
+    mobileReceivedSlot.appendChild(decoderView);
+    document.body.classList.add('mobile-received-open');
+    if (!mobileReceivedDialog.open) mobileReceivedDialog.showModal();
+}
+
+mobileReceivedDialog.addEventListener('cancel', event => event.preventDefault());
+mobileReceivedDialog.addEventListener('close', restoreMobileReceivedNode);
 
 // Returns current slider values
 function getAdjustments() {
@@ -308,6 +442,7 @@ function syncAdjustmentUI() {
     adjustmentsBadge.textContent = active ? 'MODIFIED' : 'DEFAULT';
     adjustmentsBadge.classList.toggle('active', active);
     syncMobilePresetState();
+    syncMobilePageValue();
 }
 
 // Returns the 5 adjustment values ready to pass to Wasm (UI range -100..100 → Rust -1..1, hue as-is)
@@ -325,7 +460,8 @@ function getAdjFloats() {
 // Expand / collapse
 adjustmentsToggle.addEventListener('click', () => {
     if (mobileEditorMedia.matches && !previewContainer.classList.contains('hidden')) {
-        openMobileEditor();
+        openMobileEditor(4);
+        showMobilePage(4, true);
         return;
     }
 
@@ -375,27 +511,96 @@ function resetAllAdjustments() {
 }
 
 document.getElementById('adj-reset-all').addEventListener('click', resetAllAdjustments);
-mobileAdjustmentResetAll.addEventListener('click', resetAllAdjustments);
 
-mobileAdjustmentPrev.addEventListener('click', () => {
-    showMobileAdjustment(activeMobileAdjustment - 1, true);
+function syncTransformUI() {
+    const parts = [`${rotationQuarterTurns * 90}°`];
+    if (flipHorizontal) parts.push('FLIP H');
+    if (flipVertical) parts.push('FLIP V');
+    if (parts.length === 1 && rotationQuarterTurns === 0) parts.push('ORIGINAL');
+    transformStatus.textContent = parts.join(' / ');
+    transformFlipHorizontalBtn.classList.toggle('active', flipHorizontal);
+    transformFlipVerticalBtn.classList.toggle('active', flipVertical);
+    transformFlipHorizontalBtn.setAttribute('aria-pressed', String(flipHorizontal));
+    transformFlipVerticalBtn.setAttribute('aria-pressed', String(flipVertical));
+    syncMobilePageValue();
+}
+
+function applyTransform() {
+    syncTransformUI();
+    if (!imageSession || !wasmInitialized) return;
+    imageSession.set_transform(rotationQuarterTurns, flipHorizontal, flipVertical);
+    const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
+    renderPalettePreview(effectiveId);
+}
+
+function resetTransform() {
+    rotationQuarterTurns = 0;
+    flipHorizontal = false;
+    flipVertical = false;
+    applyTransform();
+}
+
+transformLeftBtn.addEventListener('click', () => {
+    rotationQuarterTurns = (rotationQuarterTurns + 3) % 4;
+    applyTransform();
 });
-
-mobileAdjustmentNext.addEventListener('click', () => {
-    showMobileAdjustment(activeMobileAdjustment + 1, true);
+transformRightBtn.addEventListener('click', () => {
+    rotationQuarterTurns = (rotationQuarterTurns + 1) % 4;
+    applyTransform();
 });
+transformFlipHorizontalBtn.addEventListener('click', () => {
+    flipHorizontal = !flipHorizontal;
+    applyTransform();
+});
+transformFlipVerticalBtn.addEventListener('click', () => {
+    flipVertical = !flipVertical;
+    applyTransform();
+});
+transformResetBtn.addEventListener('click', resetTransform);
 
-mobileEditorDone.addEventListener('click', () => closeMobileEditor(true));
+function resetCurrentMobilePage() {
+    const page = MOBILE_PAGES[activeMobilePage];
+    if (page.adjustment) {
+        setAdjustmentValue(page.adjustment, 0);
+        return;
+    }
+
+    if (page.key === 'scale') {
+        qualitySelect.value = '128';
+        qualitySelect.dispatchEvent(new Event('change'));
+    } else if (page.key === 'palette') {
+        paletteBtnAuto.click();
+    } else if (page.key === 'transform') {
+        resetTransform();
+    } else if (page.key === 'compression') {
+        compressionSelect.value = 'brotli';
+    } else if (page.key === 'route') {
+        platformGrid.querySelector('[data-platform="whatsapp"]')?.click();
+    }
+    syncMobilePageValue();
+}
+
+mobilePageReset.addEventListener('click', resetCurrentMobilePage);
+mobileAdjustmentPrev.addEventListener('click', () => showMobilePage(activeMobilePage - 1, true));
+mobileAdjustmentNext.addEventListener('click', () => showMobilePage(activeMobilePage + 1, true));
+mobileColorRail.addEventListener('click', () => {
+    if (imageSession) showMobilePage(2, true);
+});
+mobileEditorNew.addEventListener('click', () => resetProject());
 
 mobileEditor.addEventListener('cancel', event => {
     event.preventDefault();
-    closeMobileEditor(true);
 });
 
 mobileEditor.addEventListener('close', restoreMobileEditorNodes);
 
 mobileEditorMedia.addEventListener('change', event => {
-    if (!event.matches && mobileEditor.open) closeMobileEditor(false);
+    if (!event.matches) {
+        closeMobileEditor();
+        closeMobileReceivedView();
+    } else if (window.location.hash.length <= 1) {
+        openMobileEditor(activeMobilePage);
+    }
 });
 
 // Platform selection logic
@@ -409,6 +614,7 @@ platformGrid.addEventListener('click', (e) => {
     btn.classList.add('selected');
     btn.setAttribute('aria-pressed', 'true');
     selectedPlatformLimit = parseInt(btn.dataset.limit, 10);
+    syncMobilePageValue();
 });
 
 // Palette rendering
@@ -443,6 +649,8 @@ function renderPalettePreview(paletteId) {
              renderPaletteSwatches(actualPaletteId);
              paletteModeLabel.textContent = `Auto — Match #${actualPaletteId}`;
         }
+        updateMobileColorRail(actualPaletteId);
+        syncMobilePageValue();
 
         // Replace the image preview with a canvas showing the dithered result
         let previewCanvas = document.getElementById('palette-preview-canvas');
@@ -493,6 +701,8 @@ function updatePaletteUI() {
     if (!paletteAutoMode) {
         renderPaletteSwatches(effectiveId);
     }
+    updateMobileColorRail(paletteAutoMode ? lastAutoPaletteId : effectiveId);
+    syncMobilePageValue();
 }
 
 palettePrevBtn.addEventListener('click', () => {
@@ -550,7 +760,10 @@ qualitySelect.addEventListener('change', () => {
         const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
         renderPalettePreview(effectiveId);
     }
+    syncMobilePageValue();
 });
+
+compressionSelect.addEventListener('change', syncMobilePageValue);
 
 // Save the dithered preview canvas as PNG (without sharing)
 savePreviewBtn.addEventListener('click', () => {
@@ -571,6 +784,7 @@ async function bootstrap() {
             encodeBtn.disabled = false;
             updatePaletteUI();
         }
+        updateMobileColorRail();
 
         // Request persistent storage as specified
         if (navigator.storage && navigator.storage.persist) {
@@ -592,11 +806,16 @@ function checkHash() {
         if (!hash || hash === '/' || hash.length < 2) {
             encoderView.classList.remove('hidden');
             decoderView.classList.add('hidden');
+            if (mobileEditorMedia.matches) {
+                closeMobileReceivedView();
+                openMobileEditor(activeMobilePage);
+            }
             return;
         }
 
         encoderView.classList.add('hidden');
         decoderView.classList.remove('hidden');
+        if (mobileEditorMedia.matches) openMobileReceivedView();
 
         if (!wasmInitialized) {
             decoderStatus.textContent = "Loading decoder...";
@@ -655,6 +874,10 @@ function checkHash() {
     } else {
         encoderView.classList.remove('hidden');
         decoderView.classList.add('hidden');
+        if (mobileEditorMedia.matches) {
+            closeMobileReceivedView();
+            openMobileEditor(activeMobilePage);
+        }
     }
 }
 
@@ -754,6 +977,62 @@ fileInput.addEventListener('change', (e) => {
     }
 });
 
+function clearCurrentImage() {
+    if (imageSession) {
+        try { imageSession.free(); } catch (error) { }
+    }
+    imageSession = null;
+    selectedFileBuffer = null;
+    if (currentPreviewObjectUrl) URL.revokeObjectURL(currentPreviewObjectUrl);
+    currentPreviewObjectUrl = null;
+    imagePreview.removeAttribute('src');
+    imagePreview.style.display = 'none';
+    document.getElementById('palette-preview-canvas')?.style.setProperty('display', 'none');
+    previewContainer.classList.add('hidden');
+    [settingsContainer, paletteContainer, transformContainer, adjustmentsContainer, compressionContainer, platformContainer]
+        .forEach(node => node.classList.add('hidden'));
+    savePreviewBtn.classList.add('hidden');
+    encodeBtn.disabled = true;
+}
+
+function resetEditorOptions() {
+    qualitySelect.value = '128';
+    [warningHigh, warningZen, warningCosmic].forEach(node => node?.classList.add('hidden'));
+    paletteAutoMode = true;
+    currentPaletteId = -1;
+    lastAutoPaletteId = 0;
+    resetAllAdjustments();
+    resetTransform();
+    compressionSelect.value = 'brotli';
+    selectedPlatformLimit = 4096;
+    platformGrid.querySelectorAll('.platform-btn').forEach(button => {
+        const selected = button.dataset.platform === 'whatsapp';
+        button.classList.toggle('selected', selected);
+        button.setAttribute('aria-pressed', String(selected));
+    });
+    resultContainer.classList.add('hidden');
+    urlBox.textContent = '';
+    chunkButtons.innerHTML = '';
+    shareBtn.classList.remove('hidden');
+    copyBtn.classList.remove('hidden');
+    encodeBtn.removeAttribute('aria-busy');
+    encodeBtn.innerHTML = '<span class="btn-label">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>';
+    updatePaletteUI();
+    syncMobilePageValue();
+}
+
+function resetProject() {
+    clearCurrentImage();
+    resetEditorOptions();
+    resultContainer.classList.add('hidden');
+    dropZone.classList.remove('hidden');
+    fileInput.value = '';
+    mobileInputStatus.textContent = '';
+    activeMobilePage = 0;
+    updateMobileColorRail();
+    if (mobileEditor.open) showMobilePage(0, true);
+}
+
 // Check if file is HEIF/HEIC format (not supported by Rust image crate)
 function isHeifFormat(file) {
     const type = file.type.toLowerCase();
@@ -762,90 +1041,102 @@ function isHeifFormat(file) {
         name.endsWith('.heif') || name.endsWith('.heic');
 }
 
-// Convert image file to PNG via canvas (for formats Wasm can't decode directly)
-function convertToPngBuffer(file) {
-    return new Promise((resolve, reject) => {
-        const url = URL.createObjectURL(file);
-        const img = new Image();
-        img.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = img.naturalWidth;
-            canvas.height = img.naturalHeight;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0);
-            URL.revokeObjectURL(url);
-            canvas.toBlob((blob) => {
-                if (!blob) { reject(new Error('Canvas conversion failed')); return; }
-                blob.arrayBuffer().then(buf => resolve(new Uint8Array(buf)));
-            }, 'image/png');
-        };
-        img.onerror = () => {
-            URL.revokeObjectURL(url);
-            reject(new Error('Browser cannot decode this image format. Try converting to JPEG/PNG first.'));
-        };
-        img.src = url;
+function loadHeicConverter() {
+    if (window.HeicTo) return Promise.resolve(window.HeicTo);
+    if (heicLoaderPromise) return heicLoaderPromise;
+
+    heicLoaderPromise = new Promise((resolve, reject) => {
+        const script = document.createElement('script');
+        script.src = './vendor/heic-to-1.5.2.min.js';
+        script.async = true;
+        script.onload = () => window.HeicTo
+            ? resolve(window.HeicTo)
+            : reject(new Error('HEIF decoder loaded without its public API.'));
+        script.onerror = () => reject(new Error('Could not load the local HEIF decoder.'));
+        document.head.appendChild(script);
+    }).catch(error => {
+        heicLoaderPromise = null;
+        throw error;
     });
+
+    return heicLoaderPromise;
 }
 
-function handleFile(file) {
+async function convertHeifToJpeg(file) {
+    const heicTo = await loadHeicConverter();
+    const converted = await heicTo({
+        blob: file,
+        type: 'image/jpeg',
+        quality: 0.92,
+    });
+    const jpeg = Array.isArray(converted) ? converted[0] : converted;
+    if (!(jpeg instanceof Blob) || jpeg.size === 0) {
+        throw new Error('The HEIF file did not contain a decodable primary image.');
+    }
+    return jpeg;
+}
+
+async function handleFile(file) {
     if (!file.type.startsWith('image/') && !isHeifFormat(file)) {
-        alert("Please select an image file.");
+        mobileInputStatus.textContent = 'UNSUPPORTED FILE / SELECT AN IMAGE';
+        if (!mobileEditorMedia.matches) alert('Please select an image file.');
         return;
     }
 
     const needsConversion = isHeifFormat(file);
+    clearCurrentImage();
+    resetEditorOptions();
     encodeBtn.disabled = true;
     resultContainer.classList.add('hidden');
+    mobileInputStatus.textContent = needsConversion ? 'CONVERTING HEIF → JPG…' : 'READING IMAGE…';
+    mobileInputStatus.classList.remove('hidden');
+    if (mobileEditor.open) showMobilePage(0);
 
-    // Show UI immediately
-    const dataUrlReader = new FileReader();
-    dataUrlReader.onload = (e) => {
-        imagePreview.src = e.target.result;
+    try {
+        const browserReadyBlob = needsConversion ? await convertHeifToJpeg(file) : file;
+        const arrayBuffer = await browserReadyBlob.arrayBuffer();
+        await wasmReadyPromise;
+        if (!wasmInitialized) throw new Error('The local image engine could not be initialized.');
+        initImageSession(new Uint8Array(arrayBuffer));
+
+        if (currentPreviewObjectUrl) URL.revokeObjectURL(currentPreviewObjectUrl);
+        currentPreviewObjectUrl = URL.createObjectURL(browserReadyBlob);
+        imagePreview.src = currentPreviewObjectUrl;
         imagePreview.style.display = 'block';
         const previousPreview = document.getElementById('palette-preview-canvas');
         if (previousPreview) previousPreview.style.display = 'none';
         previewContainer.classList.remove('hidden');
         settingsContainer.classList.remove('hidden');
         compressionContainer.classList.remove('hidden');
+        transformContainer.classList.remove('hidden');
         adjustmentsContainer.classList.remove('hidden');
         platformContainer.classList.remove('hidden');
         paletteContainer.classList.remove('hidden');
         dropZone.classList.add('hidden');
         savePreviewBtn.classList.remove('hidden');
         syncAdjustmentUI();
+        syncTransformUI();
+        mobileInputStatus.textContent = needsConversion ? 'HEIF CONVERTED TO JPG ✓' : `${file.name || 'IMAGE'} READY`;
         if (wasmInitialized) {
             updatePaletteUI();
         }
         if (mobileEditorMedia.matches) {
-            requestAnimationFrame(openMobileEditor);
+            openMobileEditor(1);
+            showMobilePage(1, true);
         }
-    };
-    dataUrlReader.readAsDataURL(file);
-
-    if (needsConversion) {
-        // HEIF/HEIC: convert via canvas to PNG buffer
-        convertToPngBuffer(file).then(pngBuffer => {
-            initImageSession(pngBuffer);
-            encodeBtn.disabled = !wasmInitialized;
-            if (wasmInitialized) {
-                const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
-                renderPalettePreview(effectiveId);
-            }
-        }).catch(err => {
-            alert(err.message);
-        });
-    } else {
-        // Standard format: read directly
-        const arrayBufferReader = new FileReader();
-        arrayBufferReader.onload = (e) => {
-            initImageSession(new Uint8Array(e.target.result));
-            encodeBtn.disabled = !wasmInitialized;
-            if (wasmInitialized) {
-                const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
-                renderPalettePreview(effectiveId);
-            }
-        };
-        arrayBufferReader.readAsArrayBuffer(file);
+        encodeBtn.disabled = !wasmInitialized;
+    } catch (error) {
+        console.error('Image preparation failed:', error);
+        clearCurrentImage();
+        const detail = needsConversion
+            ? 'HEIF CONVERSION FAILED / TRY ANOTHER FILE'
+            : 'IMAGE COULD NOT BE DECODED';
+        mobileInputStatus.textContent = detail;
+        dropZone.classList.remove('hidden');
+        if (mobileEditor.open) showMobilePage(0);
+        if (!mobileEditorMedia.matches) alert(`${detail}. ${error.message || error}`);
+    } finally {
+        fileInput.value = '';
     }
 }
 
@@ -865,6 +1156,7 @@ encodeBtn.addEventListener('click', async () => {
         encodeBtn.setAttribute('aria-busy', 'true');
         encodeBtn.innerHTML = '<span class="btn-label">ENCODING PIXELS</span><span aria-hidden="true">•••</span>';
         appRoot.classList.add('is-encoding');
+        mobileEditor.classList.add('is-encoding');
         resultContainer.classList.add('hidden');
 
         // Give the stepped dither overlay one full paint before the synchronous Wasm work begins.
@@ -970,15 +1262,23 @@ encodeBtn.addEventListener('click', async () => {
         alert("Failed to encode image. See console.");
     } finally {
         appRoot.classList.remove('is-encoding');
+        mobileEditor.classList.remove('is-encoding');
         encodeBtn.disabled = false;
         encodeBtn.removeAttribute('aria-busy');
         encodeBtn.innerHTML = '<span class="btn-label">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>';
 
         if (!resultContainer.classList.contains('hidden')) {
-            requestAnimationFrame(() => {
-                const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-                resultContainer.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
-            });
+            syncMobilePageValue();
+            if (mobileEditor.open) {
+                requestAnimationFrame(() => {
+                    mobilePageSlot.scrollTop = Math.max(0, resultContainer.offsetTop - mobilePageSlot.offsetTop);
+                });
+            } else {
+                requestAnimationFrame(() => {
+                    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                    resultContainer.scrollIntoView({ behavior: reducedMotion ? 'auto' : 'smooth', block: 'start' });
+                });
+            }
         }
     }
 });
@@ -1024,6 +1324,7 @@ copyBtn.addEventListener('click', () => {
 });
 
 resetBtn.addEventListener('click', () => {
+    resetProject();
     window.location.hash = '';
 });
 
@@ -1057,4 +1358,7 @@ document.getElementById('clear-cache-btn').addEventListener('click', async () =>
 });
 
 // Initialize
-bootstrap();
+if (mobileEditorMedia.matches && window.location.hash.length <= 1) {
+    openMobileEditor(0);
+}
+wasmReadyPromise = bootstrap();

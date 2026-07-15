@@ -5,6 +5,9 @@ pub struct CoreSession {
     pub original_frames: Vec<RgbaImage>,
     pub is_animation: bool,
     pub frame_count: u8,
+    pub rotation_quarter_turns: u8,
+    pub flip_horizontal: bool,
+    pub flip_vertical: bool,
     
     // Cached, resized base images
     pub cached_max_dim: u32,
@@ -37,9 +40,45 @@ impl CoreSession {
             original_frames: frames,
             is_animation,
             frame_count,
+            rotation_quarter_turns: 0,
+            flip_horizontal: false,
+            flip_vertical: false,
             cached_max_dim: 0,
             resized_frames: Vec::new(),
         })
+    }
+
+    pub fn set_transform(&mut self, rotation_quarter_turns: u8, flip_horizontal: bool, flip_vertical: bool) {
+        let rotation_quarter_turns = rotation_quarter_turns % 4;
+        if self.rotation_quarter_turns == rotation_quarter_turns
+            && self.flip_horizontal == flip_horizontal
+            && self.flip_vertical == flip_vertical
+        {
+            return;
+        }
+
+        self.rotation_quarter_turns = rotation_quarter_turns;
+        self.flip_horizontal = flip_horizontal;
+        self.flip_vertical = flip_vertical;
+        self.cached_max_dim = 0;
+        self.resized_frames.clear();
+    }
+
+    fn transform_frame(&self, frame: &RgbaImage) -> RgbaImage {
+        let mut transformed = match self.rotation_quarter_turns {
+            1 => image::imageops::rotate90(frame),
+            2 => image::imageops::rotate180(frame),
+            3 => image::imageops::rotate270(frame),
+            _ => frame.clone(),
+        };
+
+        if self.flip_horizontal {
+            transformed = image::imageops::flip_horizontal(&transformed);
+        }
+        if self.flip_vertical {
+            transformed = image::imageops::flip_vertical(&transformed);
+        }
+        transformed
     }
 
     fn ensure_resized(&mut self, max_dimension: u32) {
@@ -47,7 +86,12 @@ impl CoreSession {
             return;
         }
 
-        let (width, height) = self.original_frames[0].dimensions();
+        let (original_width, original_height) = self.original_frames[0].dimensions();
+        let (width, height) = if self.rotation_quarter_turns % 2 == 0 {
+            (original_width, original_height)
+        } else {
+            (original_height, original_width)
+        };
         let mut new_w = width;
         let mut new_h = height;
         
@@ -59,8 +103,9 @@ impl CoreSession {
 
         self.resized_frames.clear();
         for frame in &self.original_frames {
+            let transformed = self.transform_frame(frame);
             // Triangle filter is good enough, maybe Lanczos3 for better quality? Triangle is faster.
-            let resized = image::imageops::resize(frame, new_w, new_h, FilterType::Triangle);
+            let resized = image::imageops::resize(&transformed, new_w, new_h, FilterType::Triangle);
             self.resized_frames.push(resized);
         }
         
@@ -147,5 +192,50 @@ impl CoreSession {
         };
         
         Ok(crate::encoder::base62_encode(&compressed_binary))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use image::Rgba;
+
+    fn two_pixel_session() -> CoreSession {
+        let mut frame = RgbaImage::new(2, 1);
+        frame.put_pixel(0, 0, Rgba([255, 0, 0, 255]));
+        frame.put_pixel(1, 0, Rgba([0, 0, 255, 255]));
+        CoreSession {
+            original_frames: vec![frame],
+            is_animation: false,
+            frame_count: 1,
+            rotation_quarter_turns: 0,
+            flip_horizontal: false,
+            flip_vertical: false,
+            cached_max_dim: 0,
+            resized_frames: Vec::new(),
+        }
+    }
+
+    #[test]
+    fn applies_rotation_before_mirroring() {
+        let mut session = two_pixel_session();
+        session.set_transform(1, true, false);
+        session.ensure_resized(128);
+
+        let frame = &session.resized_frames[0];
+        assert_eq!(frame.dimensions(), (1, 2));
+        assert_eq!(*frame.get_pixel(0, 0), Rgba([255, 0, 0, 255]));
+        assert_eq!(*frame.get_pixel(0, 1), Rgba([0, 0, 255, 255]));
+    }
+
+    #[test]
+    fn changing_transform_invalidates_resize_cache() {
+        let mut session = two_pixel_session();
+        session.ensure_resized(128);
+        assert_eq!(session.cached_max_dim, 128);
+
+        session.set_transform(2, false, true);
+        assert_eq!(session.cached_max_dim, 0);
+        assert!(session.resized_frames.is_empty());
     }
 }

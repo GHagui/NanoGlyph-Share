@@ -169,6 +169,8 @@ NanoGlyph chunks based on the clickable limit so every shared part is a tappable
 
 (MIT — Use it, fork it, share images without the cloud.)[./LICENSE]
 
+HEIF/HEIC decoding uses the vendored `heic-to` 1.5.2 library under LGPL-3.0; its license is included at [`vendor/heic-to-LICENSE.txt`](./vendor/heic-to-LICENSE.txt).
+
 ---
 
 <p align="center">

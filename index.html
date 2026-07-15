@@ -8,7 +8,7 @@
     <meta name="description"
         content="NanoGlyph turns images into compact, shareable URLs entirely in your browser. No cloud, no upload, no server.">
     <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="./style.css?v=21">
+    <link rel="stylesheet" href="./style.css?v=22">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <meta name="theme-color" content="#f3f0e8">
@@ -134,11 +134,28 @@
                             </div>
                         </section>
 
+                        <section id="transform-container" class="control-block hidden">
+                            <div class="control-heading">
+                                <span class="control-number">03</span>
+                                <label>TRANSFORM IMAGE</label>
+                            </div>
+                            <div class="transform-grid" role="group" aria-label="Image rotation and mirroring">
+                                <button type="button" id="transform-left" class="transform-btn" aria-label="Rotate 90 degrees left">↶ <span>LEFT</span></button>
+                                <button type="button" id="transform-right" class="transform-btn" aria-label="Rotate 90 degrees right">↷ <span>RIGHT</span></button>
+                                <button type="button" id="transform-flip-horizontal" class="transform-btn" aria-pressed="false">↔ <span>FLIP H</span></button>
+                                <button type="button" id="transform-flip-vertical" class="transform-btn" aria-pressed="false">↕ <span>FLIP V</span></button>
+                            </div>
+                            <div class="transform-status-row">
+                                <span id="transform-status">0° / ORIGINAL</span>
+                                <button type="button" id="transform-reset" class="mini-reset">RESET</button>
+                            </div>
+                        </section>
+
                         <section id="adjustments-container" class="control-block hidden">
                             <div class="expandable-section" id="adjustments-section">
                                 <button type="button" class="expandable-header" id="adjustments-toggle"
                                     aria-expanded="false" aria-controls="adjustments-body">
-                                    <span class="control-number">03</span>
+                                    <span class="control-number">04</span>
                                     <span class="expandable-title">IMAGE TUNING</span>
                                     <span class="expandable-badge" id="adjustments-badge">DEFAULT</span>
                                     <span class="expandable-chevron" aria-hidden="true">→</span>
@@ -202,7 +219,7 @@
 
                         <section id="compression-container" class="control-block hidden">
                             <div class="control-heading">
-                                <span class="control-number">04</span>
+                                <span class="control-number">05</span>
                                 <label for="compression-select">COMPRESSION</label>
                             </div>
                             <select id="compression-select">
@@ -213,7 +230,7 @@
 
                         <section id="platform-container" class="control-block hidden">
                             <div class="control-heading">
-                                <span class="control-number">05</span>
+                                <span class="control-number">06</span>
                                 <label>TRANSMISSION ROUTE</label>
                             </div>
                             <div class="platform-grid" id="platform-grid">
@@ -239,7 +256,7 @@
                     </div>
                 </div>
 
-                <div class="action-block">
+                <div class="action-block" id="action-block">
                     <div class="action-copy">
                         <span>YOUR IMAGE NEVER LEAVES THIS DEVICE</span>
                         <span>RUST + WASM / BAYER DITHER</span>
@@ -295,39 +312,58 @@
         <div class="mobile-editor-shell">
             <header class="mobile-editor-topbar">
                 <div>
-                    <span>NANOGLYPH / MOBILE LAB</span>
-                    <strong id="mobile-editor-title">IMAGE TUNING</strong>
+                    <span>NANOGLYPH / MOBILE WORKFLOW</span>
+                    <strong id="mobile-editor-title">BUILD A GLYPH</strong>
                 </div>
-                <button type="button" id="mobile-editor-done" class="mobile-editor-done">DONE ✓</button>
+                <button type="button" id="mobile-editor-new" class="mobile-editor-done hidden">NEW ↺</button>
             </header>
 
             <div id="mobile-preview-slot" class="mobile-preview-slot"></div>
 
+            <button type="button" id="mobile-color-rail" class="mobile-color-rail" disabled>
+                <span id="mobile-color-swatches" class="mobile-color-swatches" aria-hidden="true"></span>
+                <strong id="mobile-color-label">COLOR MATRIX / WAITING</strong>
+                <span aria-hidden="true">→</span>
+            </button>
+
             <section class="mobile-adjustment-dock" aria-label="Image adjustment controls">
                 <div class="mobile-adjustment-meta">
                     <div>
-                        <span id="mobile-adjustment-counter">ADJUST 01 / 05</span>
-                        <h2 id="mobile-adjustment-title">EXPOSURE</h2>
+                        <span id="mobile-adjustment-counter">STEP 01 / 12</span>
+                        <h2 id="mobile-adjustment-title">IMAGE INPUT</h2>
                     </div>
-                    <output id="mobile-adjustment-value" aria-live="polite">0</output>
+                    <output id="mobile-adjustment-value" aria-live="polite">SELECT</output>
                 </div>
 
-                <div id="mobile-adjustments-slot" class="mobile-adjustments-slot"></div>
+                <div id="mobile-page-slot" class="mobile-adjustments-slot"></div>
+                <p id="mobile-input-status" class="mobile-input-status" role="status" aria-live="polite"></p>
                 <div id="mobile-adjustment-presets" class="mobile-adjustment-presets"
                     aria-label="Quick presets"></div>
 
                 <div class="mobile-adjustment-actions">
                     <button type="button" id="mobile-adjustment-prev" class="mobile-editor-arrow"
-                        aria-label="Previous adjustment">←</button>
-                    <button type="button" id="mobile-adjustment-reset-all" class="mobile-editor-reset">RESET ALL</button>
+                        aria-label="Previous step">←</button>
+                    <button type="button" id="mobile-page-reset" class="mobile-editor-reset">RESET PAGE</button>
                     <button type="button" id="mobile-adjustment-next" class="mobile-editor-arrow"
-                        aria-label="Next adjustment">→</button>
+                        aria-label="Next step">→</button>
                 </div>
             </section>
         </div>
     </dialog>
 
-    <script type="module" src="./app.js?v=21"></script>
+    <dialog id="mobile-received-dialog" class="mobile-editor mobile-received-dialog" aria-labelledby="mobile-received-title">
+        <div class="mobile-editor-shell mobile-received-shell">
+            <header class="mobile-editor-topbar">
+                <div>
+                    <span>NANOGLYPH / INCOMING SIGNAL</span>
+                    <strong id="mobile-received-title">PIXELS RECEIVED</strong>
+                </div>
+            </header>
+            <div id="mobile-received-slot" class="mobile-received-slot"></div>
+        </div>
+    </dialog>
+
+    <script type="module" src="./app.js?v=22"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js')

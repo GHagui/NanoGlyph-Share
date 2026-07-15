@@ -20,6 +20,10 @@ impl ImageSession {
         Ok(ImageSession { inner })
     }
 
+    pub fn set_transform(&mut self, rotation_quarter_turns: u8, flip_horizontal: bool, flip_vertical: bool) {
+        self.inner.set_transform(rotation_quarter_turns, flip_horizontal, flip_vertical);
+    }
+
     pub fn preview(
         &mut self,
         max_dimension: u32,
@@ -279,4 +283,3 @@ mod tests {
         assert_eq!(parsed, header);
     }
 }
-
