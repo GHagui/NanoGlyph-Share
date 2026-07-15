@@ -1,4 +1,4 @@
-import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=14';
+import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=21';
 
 // Clipboard helper with fallback for non-HTTPS contexts
 function copyToClipboard(text) {
@@ -101,6 +101,17 @@ const palettePrevBtn = document.getElementById('palette-prev');
 const paletteNextBtn = document.getElementById('palette-next');
 const chunkButtons = document.getElementById('chunk-buttons');
 const savePngBtn = document.getElementById('save-png-btn');
+const mobileEditor = document.getElementById('mobile-adjustment-editor');
+const mobileEditorDone = document.getElementById('mobile-editor-done');
+const mobilePreviewSlot = document.getElementById('mobile-preview-slot');
+const mobileAdjustmentsSlot = document.getElementById('mobile-adjustments-slot');
+const mobileAdjustmentCounter = document.getElementById('mobile-adjustment-counter');
+const mobileAdjustmentTitle = document.getElementById('mobile-adjustment-title');
+const mobileAdjustmentValue = document.getElementById('mobile-adjustment-value');
+const mobileAdjustmentPresets = document.getElementById('mobile-adjustment-presets');
+const mobileAdjustmentPrev = document.getElementById('mobile-adjustment-prev');
+const mobileAdjustmentNext = document.getElementById('mobile-adjustment-next');
+const mobileAdjustmentResetAll = document.getElementById('mobile-adjustment-reset-all');
 
 let selectedFileBuffer = null;
 let imageSession = null;
@@ -119,6 +130,143 @@ let lastAutoPaletteId = 0;
 
 // ── Image Adjustments ──────────────────────────────────────────────────────
 const ADJ_DEFAULTS = { exposure: 0, contrast: 0, saturation: 0, hue: 0, temperature: 0 };
+const mobileEditorMedia = window.matchMedia('(max-width: 560px)');
+const previewHomeMarker = document.createComment('nanoglyph-preview-home');
+const adjustmentsHomeMarker = document.createComment('nanoglyph-adjustments-home');
+previewContainer.before(previewHomeMarker);
+adjustmentsContainer.before(adjustmentsHomeMarker);
+
+const MOBILE_ADJUSTMENTS = [
+    {
+        key: 'exposure', label: 'EXPOSURE', slider: adjExposure,
+        presets: [['DARK', -35], ['SOFT', -15], ['BRIGHT', 35]],
+    },
+    {
+        key: 'contrast', label: 'CONTRAST', slider: adjContrast,
+        presets: [['SOFT', -30], ['CRISP', 20], ['HARD', 45]],
+    },
+    {
+        key: 'saturation', label: 'SATURATION', slider: adjSaturation,
+        presets: [['MONO', -100], ['MUTED', -35], ['VIVID', 45]],
+    },
+    {
+        key: 'hue', label: 'HUE ROTATE', slider: adjHue,
+        presets: [['LEFT', -90], ['FLIP', 180], ['RIGHT', 90]],
+    },
+    {
+        key: 'temperature', label: 'TEMPERATURE', slider: adjTemperature,
+        presets: [['COOL', -40], ['DAYLIGHT', 10], ['WARM', 40]],
+    },
+];
+
+MOBILE_ADJUSTMENTS.forEach(adjustment => {
+    adjustment.row = adjustment.slider.closest('.adj-row');
+});
+
+let activeMobileAdjustment = 0;
+let restoreMobileEditorFocus = true;
+
+function formatAdjustmentValue(adjustment) {
+    const value = parseInt(adjustment.slider.value, 10);
+    if (adjustment.key === 'hue') return `${value}°`;
+    return value > 0 ? `+${value}` : String(value);
+}
+
+function syncMobilePresetState() {
+    if (!mobileEditor.open) return;
+    const adjustment = MOBILE_ADJUSTMENTS[activeMobileAdjustment];
+    const value = parseInt(adjustment.slider.value, 10);
+
+    mobileAdjustmentValue.textContent = formatAdjustmentValue(adjustment);
+    mobileAdjustmentPresets.querySelectorAll('button[data-value]').forEach(button => {
+        const selected = parseInt(button.dataset.value, 10) === value;
+        button.classList.toggle('active', selected);
+        button.setAttribute('aria-pressed', String(selected));
+    });
+}
+
+function setAdjustmentValue(adjustment, value) {
+    adjustment.slider.value = value;
+    adjustment.slider.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+function renderMobilePresets(adjustment) {
+    mobileAdjustmentPresets.innerHTML = '';
+    [...adjustment.presets, ['RESET', 0]].forEach(([label, value]) => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'mobile-preset';
+        button.dataset.value = String(value);
+        button.textContent = label;
+        button.setAttribute('aria-pressed', 'false');
+        button.addEventListener('click', () => setAdjustmentValue(adjustment, value));
+        mobileAdjustmentPresets.appendChild(button);
+    });
+}
+
+function showMobileAdjustment(index, focusSlider = false) {
+    activeMobileAdjustment = Math.max(0, Math.min(index, MOBILE_ADJUSTMENTS.length - 1));
+    const adjustment = MOBILE_ADJUSTMENTS[activeMobileAdjustment];
+
+    MOBILE_ADJUSTMENTS.forEach((item, itemIndex) => {
+        const active = itemIndex === activeMobileAdjustment;
+        item.row.classList.toggle('mobile-active', active);
+        item.row.setAttribute('aria-hidden', String(!active));
+    });
+
+    mobileAdjustmentCounter.textContent = `ADJUST ${String(activeMobileAdjustment + 1).padStart(2, '0')} / 05`;
+    mobileAdjustmentTitle.textContent = adjustment.label;
+    mobileAdjustmentPrev.disabled = activeMobileAdjustment === 0;
+    mobileAdjustmentNext.disabled = activeMobileAdjustment === MOBILE_ADJUSTMENTS.length - 1;
+    renderMobilePresets(adjustment);
+    syncMobilePresetState();
+
+    if (focusSlider) {
+        requestAnimationFrame(() => adjustment.slider.focus({ preventScroll: true }));
+    }
+}
+
+function restoreMobileEditorNodes() {
+    if (previewHomeMarker.parentNode && previewContainer.parentNode !== previewHomeMarker.parentNode) {
+        previewHomeMarker.parentNode.insertBefore(previewContainer, previewHomeMarker.nextSibling);
+    }
+    if (adjustmentsHomeMarker.parentNode && adjustmentsContainer.parentNode !== adjustmentsHomeMarker.parentNode) {
+        adjustmentsHomeMarker.parentNode.insertBefore(adjustmentsContainer, adjustmentsHomeMarker.nextSibling);
+    }
+
+    document.body.classList.remove('mobile-editor-open');
+    adjustmentsToggle.setAttribute('aria-expanded', 'false');
+    adjustmentsBody.setAttribute('aria-hidden', 'true');
+    adjustmentsBody.classList.remove('open');
+    MOBILE_ADJUSTMENTS.forEach(item => {
+        item.row.classList.remove('mobile-active');
+        item.row.removeAttribute('aria-hidden');
+    });
+
+    if (restoreMobileEditorFocus && mobileEditorMedia.matches) {
+        adjustmentsToggle.focus({ preventScroll: true });
+    }
+}
+
+function closeMobileEditor(shouldRestoreFocus = true) {
+    if (!mobileEditor.open) return;
+    restoreMobileEditorFocus = shouldRestoreFocus;
+    mobileEditor.close();
+}
+
+function openMobileEditor() {
+    if (!mobileEditorMedia.matches || mobileEditor.open || previewContainer.classList.contains('hidden')) return;
+
+    mobilePreviewSlot.appendChild(previewContainer);
+    mobileAdjustmentsSlot.appendChild(adjustmentsContainer);
+    adjustmentsToggle.setAttribute('aria-expanded', 'true');
+    adjustmentsBody.setAttribute('aria-hidden', 'false');
+    adjustmentsBody.classList.add('open');
+    document.body.classList.add('mobile-editor-open');
+    restoreMobileEditorFocus = true;
+    mobileEditor.showModal();
+    showMobileAdjustment(0, true);
+}
 
 // Returns current slider values
 function getAdjustments() {
@@ -159,6 +307,7 @@ function syncAdjustmentUI() {
     const active = hasAdjustments(adj);
     adjustmentsBadge.textContent = active ? 'MODIFIED' : 'DEFAULT';
     adjustmentsBadge.classList.toggle('active', active);
+    syncMobilePresetState();
 }
 
 // Returns the 5 adjustment values ready to pass to Wasm (UI range -100..100 → Rust -1..1, hue as-is)
@@ -175,6 +324,11 @@ function getAdjFloats() {
 
 // Expand / collapse
 adjustmentsToggle.addEventListener('click', () => {
+    if (mobileEditorMedia.matches && !previewContainer.classList.contains('hidden')) {
+        openMobileEditor();
+        return;
+    }
+
     const expanded = adjustmentsToggle.getAttribute('aria-expanded') === 'true';
     adjustmentsToggle.setAttribute('aria-expanded', String(!expanded));
     adjustmentsBody.setAttribute('aria-hidden', String(expanded));
@@ -214,10 +368,34 @@ document.querySelectorAll('.adj-reset').forEach(btn => {
 });
 
 // Reset all
-document.getElementById('adj-reset-all').addEventListener('click', () => {
+function resetAllAdjustments() {
     [adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(s => s.value = 0);
     syncAdjustmentUI();
     debouncedPreviewUpdate();
+}
+
+document.getElementById('adj-reset-all').addEventListener('click', resetAllAdjustments);
+mobileAdjustmentResetAll.addEventListener('click', resetAllAdjustments);
+
+mobileAdjustmentPrev.addEventListener('click', () => {
+    showMobileAdjustment(activeMobileAdjustment - 1, true);
+});
+
+mobileAdjustmentNext.addEventListener('click', () => {
+    showMobileAdjustment(activeMobileAdjustment + 1, true);
+});
+
+mobileEditorDone.addEventListener('click', () => closeMobileEditor(true));
+
+mobileEditor.addEventListener('cancel', event => {
+    event.preventDefault();
+    closeMobileEditor(true);
+});
+
+mobileEditor.addEventListener('close', restoreMobileEditorNodes);
+
+mobileEditorMedia.addEventListener('change', event => {
+    if (!event.matches && mobileEditor.open) closeMobileEditor(false);
 });
 
 // Platform selection logic
@@ -637,6 +815,9 @@ function handleFile(file) {
         syncAdjustmentUI();
         if (wasmInitialized) {
             updatePaletteUI();
+        }
+        if (mobileEditorMedia.matches) {
+            requestAnimationFrame(openMobileEditor);
         }
     };
     dataUrlReader.readAsDataURL(file);

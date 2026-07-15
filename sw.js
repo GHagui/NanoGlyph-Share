@@ -1,9 +1,9 @@
-const CACHE_NAME = 'nanoglyph-v20';
+const CACHE_NAME = 'nanoglyph-v21';
 const ASSETS = [
     './',
     './index.html',
-    './style.css?v=20',
-    './app.js?v=14',
+    './style.css?v=21',
+    './app.js?v=21',
     './manifest.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
@@ -13,7 +13,7 @@ const ASSETS = [
     './icons/instagram.svg',
     './icons/github.svg',
     './nanoglyph_core/pkg/nanoglyph_core_bg.wasm',
-    './nanoglyph_core/pkg/nanoglyph_core.js?v=14'
+    './nanoglyph_core/pkg/nanoglyph_core.js?v=21'
 ];
 
 self.addEventListener('install', event => {

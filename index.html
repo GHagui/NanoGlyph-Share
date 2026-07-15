@@ -8,7 +8,7 @@
     <meta name="description"
         content="NanoGlyph turns images into compact, shareable URLs entirely in your browser. No cloud, no upload, no server.">
     <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="./style.css?v=20">
+    <link rel="stylesheet" href="./style.css?v=21">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <meta name="theme-color" content="#f3f0e8">
@@ -291,7 +291,43 @@
         </footer>
     </div>
 
-    <script type="module" src="./app.js?v=14"></script>
+    <dialog id="mobile-adjustment-editor" class="mobile-editor" aria-labelledby="mobile-editor-title">
+        <div class="mobile-editor-shell">
+            <header class="mobile-editor-topbar">
+                <div>
+                    <span>NANOGLYPH / MOBILE LAB</span>
+                    <strong id="mobile-editor-title">IMAGE TUNING</strong>
+                </div>
+                <button type="button" id="mobile-editor-done" class="mobile-editor-done">DONE ✓</button>
+            </header>
+
+            <div id="mobile-preview-slot" class="mobile-preview-slot"></div>
+
+            <section class="mobile-adjustment-dock" aria-label="Image adjustment controls">
+                <div class="mobile-adjustment-meta">
+                    <div>
+                        <span id="mobile-adjustment-counter">ADJUST 01 / 05</span>
+                        <h2 id="mobile-adjustment-title">EXPOSURE</h2>
+                    </div>
+                    <output id="mobile-adjustment-value" aria-live="polite">0</output>
+                </div>
+
+                <div id="mobile-adjustments-slot" class="mobile-adjustments-slot"></div>
+                <div id="mobile-adjustment-presets" class="mobile-adjustment-presets"
+                    aria-label="Quick presets"></div>
+
+                <div class="mobile-adjustment-actions">
+                    <button type="button" id="mobile-adjustment-prev" class="mobile-editor-arrow"
+                        aria-label="Previous adjustment">←</button>
+                    <button type="button" id="mobile-adjustment-reset-all" class="mobile-editor-reset">RESET ALL</button>
+                    <button type="button" id="mobile-adjustment-next" class="mobile-editor-arrow"
+                        aria-label="Next adjustment">→</button>
+                </div>
+            </section>
+        </div>
+    </dialog>
+
+    <script type="module" src="./app.js?v=21"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js')
