@@ -8,7 +8,7 @@
     <meta name="description"
         content="NanoGlyph turns images into compact, shareable URLs entirely in your browser. No cloud, no upload, no server.">
     <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="./style.css?v=22">
+    <link rel="stylesheet" href="./style.css?v=23">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <meta name="theme-color" content="#f3f0e8">
@@ -311,20 +311,18 @@
     <dialog id="mobile-adjustment-editor" class="mobile-editor" aria-labelledby="mobile-editor-title">
         <div class="mobile-editor-shell">
             <header class="mobile-editor-topbar">
-                <div>
+                <div class="mobile-editor-heading">
                     <span>NANOGLYPH / MOBILE WORKFLOW</span>
                     <strong id="mobile-editor-title">BUILD A GLYPH</strong>
                 </div>
-                <button type="button" id="mobile-editor-new" class="mobile-editor-done hidden">NEW ↺</button>
+                <div class="mobile-editor-header-actions">
+                    <button type="button" id="mobile-editor-info" class="mobile-editor-info"
+                        aria-label="Open NanoGlyph introduction">INFO</button>
+                    <button type="button" id="mobile-editor-new" class="mobile-editor-done hidden">NEW ↺</button>
+                </div>
             </header>
 
             <div id="mobile-preview-slot" class="mobile-preview-slot"></div>
-
-            <button type="button" id="mobile-color-rail" class="mobile-color-rail" disabled>
-                <span id="mobile-color-swatches" class="mobile-color-swatches" aria-hidden="true"></span>
-                <strong id="mobile-color-label">COLOR MATRIX / WAITING</strong>
-                <span aria-hidden="true">→</span>
-            </button>
 
             <section class="mobile-adjustment-dock" aria-label="Image adjustment controls">
                 <div class="mobile-adjustment-meta">
@@ -348,6 +346,32 @@
                         aria-label="Next step">→</button>
                 </div>
             </section>
+
+            <section id="mobile-onboarding" class="mobile-onboarding hidden" aria-hidden="true"
+                aria-labelledby="mobile-onboarding-title">
+                <header class="mobile-onboarding-topbar">
+                    <span id="mobile-onboarding-counter">01 / 03</span>
+                    <button type="button" id="mobile-onboarding-skip">SKIP ×</button>
+                </header>
+
+                <div class="mobile-onboarding-body">
+                    <div id="mobile-onboarding-art" class="mobile-onboarding-art" data-slide="local"
+                        aria-hidden="true">
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                        <span></span><span></span><span></span><span></span>
+                    </div>
+                    <p id="mobile-onboarding-eyebrow" class="mobile-onboarding-eyebrow">01 / LOCAL SYSTEM</p>
+                    <h2 id="mobile-onboarding-title">NO CLOUD. EVER.</h2>
+                    <p id="mobile-onboarding-copy">Your photos stay on this device. Even HEIF conversion happens locally.</p>
+                </div>
+
+                <footer class="mobile-onboarding-actions">
+                    <button type="button" id="mobile-onboarding-prev" aria-label="Previous introduction screen">←</button>
+                    <button type="button" id="mobile-onboarding-next">NEXT →</button>
+                </footer>
+            </section>
         </div>
     </dialog>
 
@@ -363,7 +387,7 @@
         </div>
     </dialog>
 
-    <script type="module" src="./app.js?v=22"></script>
+    <script type="module" src="./app.js?v=23"></script>
     <script>
         if ('serviceWorker' in navigator) {
             navigator.serviceWorker.register('./sw.js')

@@ -1,4 +1,4 @@
-import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=22';
+import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=23';
 
 // Clipboard helper with fallback for non-HTTPS contexts
 function copyToClipboard(text) {
@@ -111,6 +111,7 @@ const chunkButtons = document.getElementById('chunk-buttons');
 const savePngBtn = document.getElementById('save-png-btn');
 const actionBlock = document.getElementById('action-block');
 const mobileEditor = document.getElementById('mobile-adjustment-editor');
+const mobileEditorInfo = document.getElementById('mobile-editor-info');
 const mobileEditorNew = document.getElementById('mobile-editor-new');
 const mobilePreviewSlot = document.getElementById('mobile-preview-slot');
 const mobilePageSlot = document.getElementById('mobile-page-slot');
@@ -122,9 +123,15 @@ const mobileAdjustmentPrev = document.getElementById('mobile-adjustment-prev');
 const mobileAdjustmentNext = document.getElementById('mobile-adjustment-next');
 const mobilePageReset = document.getElementById('mobile-page-reset');
 const mobileInputStatus = document.getElementById('mobile-input-status');
-const mobileColorRail = document.getElementById('mobile-color-rail');
-const mobileColorSwatches = document.getElementById('mobile-color-swatches');
-const mobileColorLabel = document.getElementById('mobile-color-label');
+const mobileOnboarding = document.getElementById('mobile-onboarding');
+const mobileOnboardingCounter = document.getElementById('mobile-onboarding-counter');
+const mobileOnboardingArt = document.getElementById('mobile-onboarding-art');
+const mobileOnboardingEyebrow = document.getElementById('mobile-onboarding-eyebrow');
+const mobileOnboardingTitle = document.getElementById('mobile-onboarding-title');
+const mobileOnboardingCopy = document.getElementById('mobile-onboarding-copy');
+const mobileOnboardingSkip = document.getElementById('mobile-onboarding-skip');
+const mobileOnboardingPrev = document.getElementById('mobile-onboarding-prev');
+const mobileOnboardingNext = document.getElementById('mobile-onboarding-next');
 const mobileReceivedDialog = document.getElementById('mobile-received-dialog');
 const mobileReceivedSlot = document.getElementById('mobile-received-slot');
 const decoderHomeMarker = document.createComment('nanoglyph-decoder-home');
@@ -151,6 +158,29 @@ let lastAutoPaletteId = 0;
 // ── Image adjustments + mobile workflow ───────────────────────────────────
 const ADJ_DEFAULTS = { exposure: 0, contrast: 0, saturation: 0, hue: 0, temperature: 0 };
 const mobileEditorMedia = window.matchMedia('(max-width: 560px)');
+const MOBILE_ONBOARDING_KEY = 'nanoglyph_mobile_onboarding_v1';
+const MOBILE_ONBOARDING_SLIDES = [
+    {
+        art: 'local',
+        eyebrow: '01 / LOCAL SYSTEM',
+        title: 'NO CLOUD. EVER.',
+        copy: 'Your photos stay on this device. Even HEIF conversion happens locally.',
+    },
+    {
+        art: 'lab',
+        eyebrow: '02 / PIXEL LAB',
+        title: 'TUNE EVERY PIXEL.',
+        copy: 'Use the arrows to move through full-screen adjustments, Color Matrix and image rotation.',
+    },
+    {
+        art: 'transmit',
+        eyebrow: '03 / TRANSMIT',
+        title: 'SEND THE GLYPH.',
+        copy: 'Choose a transmission route, generate a compact link or download the pixel PNG.',
+    },
+];
+let activeOnboardingSlide = 0;
+let onboardingCompletedForSession = false;
 
 const MOBILE_ADJUSTMENTS = [
     {
@@ -277,20 +307,58 @@ function syncMobilePageValue() {
     syncMobilePresetState();
 }
 
-function updateMobileColorRail(paletteId = lastAutoPaletteId) {
-    mobileColorSwatches.innerHTML = '';
-    const colors = wasmInitialized
-        ? get_palette_colors(Math.max(0, Math.min(98, paletteId)))
-        : new Uint8Array(24).fill(68);
-    for (let index = 0; index < 8; index++) {
-        const swatch = document.createElement('span');
-        swatch.style.backgroundColor = `rgb(${colors[index * 3]}, ${colors[index * 3 + 1]}, ${colors[index * 3 + 2]})`;
-        mobileColorSwatches.appendChild(swatch);
+function hasCompletedMobileOnboarding() {
+    if (onboardingCompletedForSession) return true;
+    try {
+        return localStorage.getItem(MOBILE_ONBOARDING_KEY) === 'complete';
+    } catch (error) {
+        return false;
     }
-    mobileColorRail.disabled = !imageSession;
-    mobileColorLabel.textContent = imageSession
-        ? `COLOR MATRIX / ${paletteAutoMode ? `AUTO #${lastAutoPaletteId}` : `MANUAL #${currentPaletteId}`}`
-        : 'COLOR MATRIX / WAITING';
+}
+
+function completeMobileOnboarding() {
+    onboardingCompletedForSession = true;
+    try {
+        localStorage.setItem(MOBILE_ONBOARDING_KEY, 'complete');
+    } catch (error) {
+        // The in-memory flag still prevents repeat prompts for this session.
+    }
+}
+
+function renderMobileOnboarding() {
+    const slide = MOBILE_ONBOARDING_SLIDES[activeOnboardingSlide];
+    mobileOnboardingCounter.textContent = `${String(activeOnboardingSlide + 1).padStart(2, '0')} / ${String(MOBILE_ONBOARDING_SLIDES.length).padStart(2, '0')}`;
+    mobileOnboardingArt.dataset.slide = slide.art;
+    mobileOnboardingEyebrow.textContent = slide.eyebrow;
+    mobileOnboardingTitle.textContent = slide.title;
+    mobileOnboardingCopy.textContent = slide.copy;
+    mobileOnboardingPrev.disabled = activeOnboardingSlide === 0;
+    mobileOnboardingNext.textContent = activeOnboardingSlide === MOBILE_ONBOARDING_SLIDES.length - 1
+        ? 'START →'
+        : 'NEXT →';
+}
+
+function hideMobileOnboarding(markComplete = false, restoreFocus = true) {
+    if (markComplete) completeMobileOnboarding();
+    mobileOnboarding.classList.add('hidden');
+    mobileOnboarding.setAttribute('aria-hidden', 'true');
+    mobileEditor.classList.remove('onboarding-open');
+    mobileEditor.querySelectorAll('.mobile-editor-topbar, .mobile-preview-slot, .mobile-adjustment-dock')
+        .forEach(node => { node.inert = false; });
+    if (restoreFocus && mobileEditor.open) mobileEditorInfo.focus({ preventScroll: true });
+}
+
+function showMobileOnboarding(force = false) {
+    if (!mobileEditorMedia.matches || !mobileEditor.open || mobileReceivedDialog.open) return;
+    if (!force && (window.location.hash.length > 1 || hasCompletedMobileOnboarding())) return;
+    activeOnboardingSlide = 0;
+    renderMobileOnboarding();
+    mobileOnboarding.classList.remove('hidden');
+    mobileOnboarding.setAttribute('aria-hidden', 'false');
+    mobileEditor.classList.add('onboarding-open');
+    mobileEditor.querySelectorAll('.mobile-editor-topbar, .mobile-preview-slot, .mobile-adjustment-dock')
+        .forEach(node => { node.inert = true; });
+    requestAnimationFrame(() => mobileOnboardingNext.focus({ preventScroll: true }));
 }
 
 function showMobilePage(index, focusControl = false) {
@@ -344,7 +412,6 @@ function showMobilePage(index, focusControl = false) {
     mobileEditorNew.classList.toggle('hidden', !imageSession);
     mobileInputStatus.classList.toggle('hidden', page.key !== 'input' || !mobileInputStatus.textContent);
     syncMobilePageValue();
-    updateMobileColorRail();
     mobilePageSlot.scrollTop = 0;
 
     if (focusControl) {
@@ -354,6 +421,7 @@ function showMobilePage(index, focusControl = false) {
 }
 
 function restoreMobileEditorNodes() {
+    hideMobileOnboarding(false, false);
     MOVABLE_MOBILE_NODES.forEach(restoreMobileNode);
     document.body.classList.remove('mobile-editor-open');
     adjustmentsToggle.setAttribute('aria-expanded', 'false');
@@ -376,6 +444,7 @@ function openMobileEditor(initialPage = activeMobilePage) {
     document.body.classList.add('mobile-editor-open');
     mobileEditor.showModal();
     showMobilePage(initialPage, false);
+    showMobileOnboarding(false);
 }
 
 function restoreMobileReceivedNode() {
@@ -583,8 +652,20 @@ function resetCurrentMobilePage() {
 mobilePageReset.addEventListener('click', resetCurrentMobilePage);
 mobileAdjustmentPrev.addEventListener('click', () => showMobilePage(activeMobilePage - 1, true));
 mobileAdjustmentNext.addEventListener('click', () => showMobilePage(activeMobilePage + 1, true));
-mobileColorRail.addEventListener('click', () => {
-    if (imageSession) showMobilePage(2, true);
+mobileEditorInfo.addEventListener('click', () => showMobileOnboarding(true));
+mobileOnboardingSkip.addEventListener('click', () => hideMobileOnboarding(true));
+mobileOnboardingPrev.addEventListener('click', () => {
+    if (activeOnboardingSlide === 0) return;
+    activeOnboardingSlide--;
+    renderMobileOnboarding();
+});
+mobileOnboardingNext.addEventListener('click', () => {
+    if (activeOnboardingSlide === MOBILE_ONBOARDING_SLIDES.length - 1) {
+        hideMobileOnboarding(true);
+        return;
+    }
+    activeOnboardingSlide++;
+    renderMobileOnboarding();
 });
 mobileEditorNew.addEventListener('click', () => resetProject());
 
@@ -649,7 +730,6 @@ function renderPalettePreview(paletteId) {
              renderPaletteSwatches(actualPaletteId);
              paletteModeLabel.textContent = `Auto — Match #${actualPaletteId}`;
         }
-        updateMobileColorRail(actualPaletteId);
         syncMobilePageValue();
 
         // Replace the image preview with a canvas showing the dithered result
@@ -701,7 +781,6 @@ function updatePaletteUI() {
     if (!paletteAutoMode) {
         renderPaletteSwatches(effectiveId);
     }
-    updateMobileColorRail(paletteAutoMode ? lastAutoPaletteId : effectiveId);
     syncMobilePageValue();
 }
 
@@ -784,8 +863,6 @@ async function bootstrap() {
             encodeBtn.disabled = false;
             updatePaletteUI();
         }
-        updateMobileColorRail();
-
         // Request persistent storage as specified
         if (navigator.storage && navigator.storage.persist) {
             const granted = await navigator.storage.persist();
@@ -1029,7 +1106,6 @@ function resetProject() {
     fileInput.value = '';
     mobileInputStatus.textContent = '';
     activeMobilePage = 0;
-    updateMobileColorRail();
     if (mobileEditor.open) showMobilePage(0, true);
 }
 
