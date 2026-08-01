@@ -29,8 +29,20 @@ jobs:
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 
-      - name: Build Wasm
-        run: cd nanoglyph_core && wasm-pack build --target web
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Test Rust core
+        run: npm run test:rust
+
+      - name: Build web application
+        run: npm run build:web
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -38,7 +50,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: '.'
+          path: 'dist'
 
   deploy:
     environment:

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="nanoglyph_paper">#F3F0E8</color>
+    <color name="nanoglyph_ink">#111111</color>
+    <color name="nanoglyph_violet">#6D35F2</color>
+</resources>

@@ -9,12 +9,18 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
         }
         return palette;
     }
-    
+
     // Palette 1: Standard web colors
     if id == 1 {
         return [
-            [0, 0, 0], [255, 0, 0], [0, 255, 0], [0, 0, 255],
-            [255, 255, 0], [0, 255, 255], [255, 0, 255], [255, 255, 255]
+            [0, 0, 0],
+            [255, 0, 0],
+            [0, 255, 0],
+            [0, 0, 255],
+            [255, 255, 0],
+            [0, 255, 255],
+            [255, 0, 255],
+            [255, 255, 255],
         ];
     }
 
@@ -28,7 +34,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [218, 165, 80],  // Luz do sol/Golden Hour
             [194, 135, 117], // Tons de pele base/Argila
             [105, 75, 55],   // Madeira e Terra profunda
-            [242, 238, 230]  // Realces/Branco fotográfico
+            [242, 238, 230], // Realces/Branco fotográfico
         ];
     }
 
@@ -42,7 +48,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [180, 90, 95],   // Lábios e Blush (Rosa queimado)
             [100, 120, 110], // Olhos (Avelã/Sálvia suave)
             [245, 230, 215], // Realce de pele (Brilho suave)
-            [150, 145, 140]  // Fundo neutro fotográfico (Cinza quente)
+            [150, 145, 140], // Fundo neutro fotográfico (Cinza quente)
         ];
     }
     // Palette 4: Cinema "Teal & Orange"
@@ -55,7 +61,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [170, 85, 45],   // Ferrugem/Laranja profundo
             [210, 140, 85],  // Pele iluminada/Luz principal
             [235, 195, 130], // Golden Hour (Sol rebatido)
-            [220, 225, 225]  // Fumaça e Realces frios
+            [220, 225, 225], // Fumaça e Realces frios
         ];
     }
     // Palette 5: Paisagem Melancólica e Inverno
@@ -68,7 +74,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [120, 105, 95],  // Terra úmida e Lama
             [155, 125, 90],  // Folhas secas de outono
             [185, 190, 190], // Neblina densa
-            [230, 235, 240]  // Céu nublado de inverno
+            [230, 235, 240], // Céu nublado de inverno
         ];
     }
     // Palette 6: Filme Analógico Vintage
@@ -81,7 +87,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [110, 130, 160], // Jeans desbotado (Azul analógico)
             [170, 145, 120], // Filtro Sépia (Meios-tons de papel)
             [220, 160, 150], // Rosa pastel/Pêssego vintage
-            [240, 230, 210]  // Papel fotográfico envelhecido (Creme)
+            [240, 230, 210], // Papel fotográfico envelhecido (Creme)
         ];
     }
 
@@ -95,7 +101,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [55, 140, 155],  // Reflexos de vitrines (Ciano noturno)
             [130, 70, 120],  // Letreiros e reflexos (Magenta/Neon suave)
             [165, 115, 95],  // Pele humana sob luz artificial mista
-            [235, 245, 255]  // Foco de luz/Farol (Branco azulado intenso)
+            [235, 245, 255], // Foco de luz/Farol (Branco azulado intenso)
         ];
     }
 
@@ -109,10 +115,10 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [240, 175, 75],  // O sol em si (Dourado vibrante)
             [130, 105, 60],  // Vegetação e grama retroiluminada
             [205, 135, 95],  // Tons de pele banhados pelo sol
-            [255, 235, 190]  // Halo solar (Amarelo pastel brilhante)
+            [255, 235, 190], // Halo solar (Amarelo pastel brilhante)
         ];
     }
-    
+
     // Palette 9: Gastronomia e Food Photography
     if id == 9 {
         return [
@@ -123,7 +129,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [100, 135, 70],  // Ervas frescas (Manjericão, salsinha)
             [235, 170, 50],  // Gemas de ovo, cítricos e azeite
             [240, 225, 185], // Queijos, cremes e manteiga
-            [245, 245, 240]  // Pratos de porcelana limpos e reflexos
+            [245, 245, 240], // Pratos de porcelana limpos e reflexos
         ];
     }
 
@@ -137,7 +143,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [210, 175, 165], // Blush e tons de pele em luz de estúdio
             [225, 215, 200], // Linho, bege e tecidos naturais
             [240, 240, 245], // Fundo branco de estúdio (Ligeiramente cinza)
-            [250, 250, 250]  // Estouro do flash (Branco quase puro)
+            [250, 250, 250], // Estouro do flash (Branco quase puro)
         ];
     }
 
@@ -151,7 +157,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [125, 180, 205], // Reflexo em gotas de orvalho (Azul ciano claro)
             [165, 115, 160], // Púrpuras de flores silvestres e orquídeas
             [110, 85, 45],   // Terra molhada e cascas de árvore (Marrom quente)
-            [235, 240, 235]  // Brilho especular (Luz refletida em texturas)
+            [235, 240, 235], // Brilho especular (Luz refletida em texturas)
         ];
     }
 
@@ -165,7 +171,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [155, 110, 80],  // Areia molhada/Pele bronzeada escura
             [225, 150, 100], // Pele bronzeada com filtro solar/Luz quente
             [245, 235, 210], // Espuma do mar e nuvens brilhantes
-            [250, 250, 255]  // Brilho ofuscante do sol na água
+            [250, 250, 255], // Brilho ofuscante do sol na água
         ];
     }
 
@@ -179,7 +185,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [115, 45, 225],  // Roxo profundo/Ultravioleta
             [230, 215, 50],  // Amarelo tóxico/Ácido (Avisos de perigo/Luzes amarelas)
             [60, 215, 115],  // Verde tela de fósforo (Matrix/Terminais antigos)
-            [225, 240, 255]  // Branco frio (Halogênio superexposto)
+            [225, 240, 255], // Branco frio (Halogênio superexposto)
         ];
     }
 
@@ -193,7 +199,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [170, 135, 105], // Sépia claro/Papel pardo
             [205, 175, 140], // Tons de pele monocromáticos sob luz
             [230, 210, 185], // Fundo iluminado/Papel creme
-            [250, 240, 225]  // Reflexos e desgastes (Branco quente)
+            [250, 240, 225], // Reflexos e desgastes (Branco quente)
         ];
     }
 
@@ -207,7 +213,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [140, 100, 130], // Brilho de gás ionizado (Rosa espacial)
             [65, 120, 130],  // Emissão de oxigênio/Estrelas azuis (Ciano escuro)
             [190, 200, 220], // Estrelas distantes e poeira clara
-            [240, 245, 255]  // Estrelas brilhantes e Lua (Branco azulado intenso)
+            [240, 245, 255], // Estrelas brilhantes e Lua (Branco azulado intenso)
         ];
     }
 
@@ -221,7 +227,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [240, 110, 130], // Grama iluminada e folhas claras (Rosa chiclete)
             [180, 160, 140], // Estruturas humanas, estradas e terra
             [230, 210, 200], // Tons de pele e construções claras
-            [250, 245, 250]  // Nuvens e superexposição
+            [250, 245, 250], // Nuvens e superexposição
         ];
     }
 
@@ -235,7 +241,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [245, 225, 180], // Luz do sol suave (Amarelo pastel)
             [230, 210, 205], // Tons de pele super suaves e iluminados
             [245, 240, 245], // Fundo arejado e atmosfera leve
-            [255, 255, 255]  // Reflexos e destaques oníricos
+            [255, 255, 255], // Reflexos e destaques oníricos
         ];
     }
 
@@ -249,7 +255,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [140, 75, 45],   // Metal oxidado (Ferrugem intensa)
             [185, 150, 100], // Tinta amarela descascando e iluminação velha
             [90, 120, 105],  // Tinta industrial e vidro sujo (Verde dessaturado)
-            [200, 205, 200]  // Céu nublado e luz difusa através de poeira
+            [200, 205, 200], // Céu nublado e luz difusa através de poeira
         ];
     }
 
@@ -263,7 +269,7 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [235, 120, 180], // Rosa Chiclete (Acentos e fundos)
             [95, 205, 125],  // Verde Hortelã/Esmeralda retro
             [245, 145, 80],  // Laranja Tangerina
-            [245, 240, 225]  // Papel Off-White (Fundo claro, sem estourar)
+            [245, 240, 225], // Papel Off-White (Fundo claro, sem estourar)
         ];
     }
 
@@ -277,27 +283,31 @@ pub fn get_palette(id: u8) -> [[u8; 3]; 8] {
             [235, 245, 175], // Amarelo limão pastel (Luz direta refringida)
             [255, 185, 160], // Pêssego/Salmão suave
             [245, 140, 195], // Rosa perolado
-            [255, 250, 255]  // Brilho especular total (Branco com toque magenta)
+            [255, 250, 255], // Brilho especular total (Branco com toque magenta)
         ];
     }
-    
+
     // Procedural generation for palettes 21-98
     // Remap to spread evenly across 360° hue regardless of how many custom palettes exist
     let num_custom = 21; // Number of hand-crafted palettes (0-20)
     let procedural_index = (id - num_custom) as f32;
     let procedural_total = (99 - num_custom) as f32; // 78 procedural palettes
     let hue_base = (procedural_index / procedural_total) * 360.0;
-    
+
     for i in 0..8 {
         let lightness = i as f32 / 7.0; // 0.0 to 1.0
-        // Vary hue slightly across the palette
+                                        // Vary hue slightly across the palette
         let h = (hue_base + (i as f32 * 12.0)) % 360.0;
-        let s = if lightness < 0.1 || lightness > 0.9 { 0.15 } else { 0.75 };
-        
+        let s = if lightness < 0.1 || lightness > 0.9 {
+            0.15
+        } else {
+            0.75
+        };
+
         let (r, g, b) = hsl_to_rgb(h, s, lightness);
         palette[i] = [r, g, b];
     }
-    
+
     palette
 }
 

@@ -33,7 +33,7 @@ The entire image lives in the link. Send it via WhatsApp, Telegram, SMS, email �
 | Feature | Description |
 |---------|-------------|
 | 🎨 **99 Color Palettes** | 20 hand-crafted + 79 procedural palettes with Auto/Manual toggle |
-| 🎛️ **Instant Adjustments** | Saturation, Hue, Exposure, Contrast, and Temperature calculated instantly in WebAssembly |
+| 🎛️ **Responsive Adjustments** | Preview work runs in a dedicated Web Worker, keeping the interface responsive |
 | 🚀 **Aggressive PWA** | Custom Service Worker bypasses "stuck cache" bugs standard to mobile PWAs for guaranteed updates |
 | 📱 **Platform-Aware Chunking** | Auto-splits URLs for WhatsApp (4K), Telegram (4K), Messenger (2K), Instagram (1K) |
 | 🖼️ **Multi-Format Support** | PNG, JPEG, GIF, WebP, BMP, HEIF/HEIC — including animations |
@@ -41,8 +41,9 @@ The entire image lives in the link. Send it via WhatsApp, Telegram, SMS, email �
 | 🔒 **Zero Server** | Everything runs in your browser via WebAssembly — no data leaves your device |
 | 📶 **Offline-First** | Works without internet after first visit — self-contained ImageSession Wasm layer |
 | ⚡ **Rust + WebAssembly** | Image processing at near-native speed using Bayer dithering and RLE |
-| 🗜️ **Dual Compression** | Choose between Brotli (maximum compression) or Zlib (compatibility) |
+| 🗜️ **Adaptive Compression** | Brotli quality is selected by payload size, with maximum Brotli and Zlib overrides |
 | 🎚️ **Quality Control** | Low (64px) to Cosmic (2048px) — you choose the tradeoff |
+| 🤖 **Android App** | Capacitor 8 package for Android 7+, native sharing, gallery save, and verified App Links |
 
 ---
 
@@ -83,8 +84,8 @@ flowchart LR
 4. **Dither** — Bayer ordered dithering for smooth color transitions
 5. **Pack** — 3 bits per pixel (8 colors = 3 bits, 62% size reduction vs 8-bit)
 6. **RLE** — Run-length encoding for repeated color runs
-7. **Compress** — Brotli (Q11) or Zlib (L9) for maximum entropy compression
-8. **Base62** — URL-safe encoding using `A-Za-z0-9` only
+7. **Compress** — Adaptive Brotli (Q6/Q9/Q11), maximum Brotli, or Zlib compatibility mode
+8. **Base62** — URL-safe encoding using grouped radix conversion over `A-Za-z0-9`
 
 The result is a self-contained URL like:
 ```
@@ -97,30 +98,71 @@ https://ghagui.github.io/NanoGlyph-Share/#2s54FcFnAlWr...
 
 - **Rust** — Core image processing, compression, and Base62 encoding
 - **WebAssembly** — Compiled from Rust via `wasm-pack` for browser execution
+- **Web Worker** — Isolates image loading, previews, encoding, and decoding from the UI thread
 - **Vanilla JS/CSS/HTML** — Zero-dependency frontend, no frameworks
+- **Capacitor 8** — Android 7+ shell with native share and MediaStore integration
 - **Service Worker** — Offline caching for PWA support
-- **GitHub Actions** — CI/CD pipeline builds Wasm and deploys to GitHub Pages
+- **GitHub Actions** — Tests, GitHub Pages deployment, debug APK CI, and signed APK/AAB releases
 
 ---
 
 ## 🏗️ Build from Source
 
 ### Prerequisites
+
 - [Rust](https://rustup.rs/) with `wasm32-unknown-unknown` target
 - [wasm-pack](https://rustwasm.github.io/wasm-pack/installer/)
+- Node.js 22+
+- For Android: JDK 21 and Android SDK Platform 36
 
-### Build
+### Web build
+
 ```bash
-cd nanoglyph_core
-wasm-pack build --target web
+npm ci
+npm run test:rust
+npm run build:web
 ```
 
 ### Run locally
+
 ```bash
-# From the project root
-python3 -m http.server 8080
-# Open http://localhost:8080
+python3 -m http.server 8080 --directory dist
+# Open http://localhost:8080/
 ```
+
+### Android debug APK
+
+```bash
+npm run cap:sync
+cd android
+./gradlew test lint assembleDebug
+# app/build/outputs/apk/debug/app-debug.apk
+```
+
+### Signed release APK and AAB
+
+Provide the release keystore through environment variables; the private key is never
+stored in the repository:
+
+```bash
+export ANDROID_KEYSTORE_PATH=/absolute/path/to/release.jks
+export ANDROID_KEYSTORE_PASSWORD='...'
+export ANDROID_KEY_ALIAS='...'
+export ANDROID_KEY_PASSWORD='...'
+
+npm run android:release -- -PversionCode=1 -PversionName=0.2.0
+```
+
+Release artifacts are written to:
+
+```text
+android/app/build/outputs/apk/release/app-release.apk
+android/app/build/outputs/bundle/release/app-release.aab
+```
+
+The tag workflow (`v*.*.*`) performs the same signed build using GitHub Actions
+secrets. See [`app-links/README.md`](./app-links/README.md) for the one-time
+Digital Asset Links setup required for verified links.
 
 ---
 
@@ -167,7 +209,7 @@ NanoGlyph chunks based on the clickable limit so every shared part is a tappable
 
 ## 📄 License
 
-(MIT — Use it, fork it, share images without the cloud.)[./LICENSE]
+[GNU Affero General Public License v3](./LICENSE).
 
 HEIF/HEIC decoding uses the vendored `heic-to` 1.5.2 library under LGPL-3.0; its license is included at [`vendor/heic-to-LICENSE.txt`](./vendor/heic-to-LICENSE.txt).
 

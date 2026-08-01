@@ -1,0 +1,31 @@
+{
+  "name": "nanoglyph-share",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Offline-first image sharing for the web and Android",
+  "license": "AGPL-3.0-only",
+  "scripts": {
+    "build": "npm run build:web",
+    "build:web": "node scripts/build-web.mjs",
+    "cap:sync": "npm run build:web && npx cap sync android",
+    "android:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug",
+    "android:release": "npm run cap:sync && cd android && ./gradlew assembleRelease bundleRelease",
+    "test:rust": "cargo test --manifest-path nanoglyph_core/Cargo.toml",
+    "test:web": "node --test tests/*.test.js",
+    "test": "npm run test:rust && npm run test:web && npm run build:web"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.0.0",
+    "@capacitor/app": "^8.0.0",
+    "@capacitor/core": "^8.0.0",
+    "@capacitor/share": "^8.0.0"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "^8.0.0",
+    "esbuild": "^0.25.0"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

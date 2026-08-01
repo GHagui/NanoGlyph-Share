@@ -1,4 +1,18 @@
-import init, { ImageSession, decode_base62_to_image, get_palette_colors } from './nanoglyph_core/pkg/nanoglyph_core.js?v=25';
+import { NanoGlyphEngine } from './engine-client.js';
+import {
+    CANONICAL_APP_URL,
+    initializePlatform,
+    savePngBlob,
+    shareUrl,
+} from './native-platform.js';
+import {
+    collectChunkPayload,
+    MAX_NANOGLYPH_PAYLOAD_LENGTH,
+    parseChunkMetadata,
+    splitPayloadIntoChunks,
+} from './share-chunks.js';
+
+const engine = new NanoGlyphEngine();
 
 // Clipboard helper with fallback for non-HTTPS contexts
 function copyToClipboard(text) {
@@ -44,17 +58,15 @@ function saveCanvasAsUpscaledPng(sourceCanvas, filename, successCallback) {
 
     ctx.drawImage(sourceCanvas, 0, 0, exportCanvas.width, exportCanvas.height);
 
-    exportCanvas.toBlob((blob) => {
+    exportCanvas.toBlob(async (blob) => {
         if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        if (successCallback) successCallback();
+        try {
+            await savePngBlob(blob, filename);
+            if (successCallback) successCallback();
+        } catch (error) {
+            console.error('PNG save failed:', error);
+            alert(`Could not save the PNG: ${error.message || error}`);
+        }
     }, 'image/png');
 }
 
@@ -140,17 +152,14 @@ const decoderHomeMarker = document.createComment('nanoglyph-decoder-home');
 decoderView.before(decoderHomeMarker);
 
 let selectedFileBuffer = null;
-let imageSession = null;
+let imageGeneration = 0;
 let currentPreviewObjectUrl = null;
 let heicLoaderPromise = null;
 
-function initImageSession(buffer) {
-    if (imageSession) {
-        try { imageSession.free(); } catch (e) { }
-    }
-    imageSession = new ImageSession(buffer);
-    imageSession.set_transform(rotationQuarterTurns, flipHorizontal, flipVertical);
-    selectedFileBuffer = buffer;
+async function initImageSession(buffer) {
+    await engine.loadImage(buffer.buffer);
+    await engine.setTransform(rotationQuarterTurns, flipHorizontal, flipVertical);
+    selectedFileBuffer = true;
 }
 let selectedPlatformLimit = 4096; // default: WhatsApp
 let currentPaletteId = -1; // -1 = auto-detect
@@ -162,16 +171,52 @@ const ADJ_DEFAULTS = { exposure: 0, contrast: 0, saturation: 0, hue: 0, temperat
 const mobileEditorMedia = window.matchMedia('(max-width: 560px)');
 const ONBOARDING_KEY = 'nanoglyph_onboarding_v1';
 const LEGACY_MOBILE_ONBOARDING_KEY = 'nanoglyph_mobile_onboarding_v1';
+const ONBOARDING_ART = {
+    'photo-link': `
+        <div class="art-photo-frame">
+            <span class="art-photo-sun"></span>
+            <span class="art-photo-mountain art-photo-mountain-back"></span>
+            <span class="art-photo-mountain art-photo-mountain-front"></span>
+        </div>
+        <span class="art-photo-arrow">→</span>
+        <div class="art-link-bar"><strong>HTTPS</strong><span></span></div>`,
+    choose: `
+        <div class="art-drop-target"><span>DROP HERE</span><b>＋</b></div>
+        <div class="art-file-card"><i></i><strong>IMG</strong><small>.JPG</small></div>
+        <span class="art-cursor">↖</span>`,
+    create: `
+        <span class="art-create-track"></span>
+        <div class="art-create-source"><i></i><i></i><i></i><i></i></div>
+        <div class="art-create-core"><i></i><i></i><i></i></div>
+        <div class="art-create-result"><strong>LINK</strong><span>↗</span></div>
+        <div class="art-create-progress"><span></span></div>`,
+    share: `
+        <div class="art-chat-window">
+            <div class="art-chat-header"><i></i><strong>CHAT</strong></div>
+            <div class="art-message art-message-one"><b>1 / 3</b><span></span></div>
+            <div class="art-message art-message-two"><b>2 / 3</b><span></span></div>
+            <div class="art-message art-message-three"><b>3 / 3</b><span></span></div>
+        </div>
+        <span class="art-send-arrow">↗</span>`,
+    receive: `
+        <div class="art-receive-frame">
+            <span class="art-piece art-piece-one">1</span>
+            <span class="art-piece art-piece-two">2</span>
+            <span class="art-piece art-piece-three">3</span>
+            <span class="art-piece art-piece-four">✓</span>
+        </div>
+        <strong class="art-complete">PHOTO COMPLETE</strong>`,
+};
 const ONBOARDING_SLIDES = [
     {
-        art: 'local',
+        art: 'photo-link',
         eyebrow: '01 / WHAT THIS APP DOES',
         title: 'PHOTO AS A LINK.',
         copy: 'NanoGlyph puts a small version of your photo inside a web link. Send that link in any chat instead of uploading the photo.',
         hint: 'YOUR ORIGINAL PHOTO NEVER LEAVES THIS DEVICE.',
     },
     {
-        art: 'lab',
+        art: 'choose',
         eyebrow: '02 / CHOOSE',
         title: 'CHOOSE A PHOTO.',
         mobileCopy: 'Tap SELECT FILE and choose a photo. Check the preview, then use → to move through the options.',
@@ -179,7 +224,7 @@ const ONBOARDING_SLIDES = [
         hint: 'NOT SURE WHAT TO CHANGE? KEEP THE DEFAULT SETTINGS.',
     },
     {
-        art: 'local',
+        art: 'create',
         eyebrow: '03 / CREATE',
         title: 'CREATE THE LINK.',
         mobileCopy: 'Keep using → until the last screen, then tap ENCODE MAGIC LINK. Wait for the sharing buttons to appear.',
@@ -187,7 +232,7 @@ const ONBOARDING_SLIDES = [
         hint: 'KEEP THIS PAGE OPEN UNTIL THE LINK IS READY.',
     },
     {
-        art: 'transmit',
+        art: 'share',
         eyebrow: '04 / SHARE',
         title: 'SEND EVERY PART.',
         copy: 'Use SHARE LINK or COPY LINK. If buttons named Part 1, Part 2 and more appear, send every part to the same person.',
@@ -233,7 +278,7 @@ MOBILE_ADJUSTMENTS.forEach(adjustment => {
 });
 
 const MOBILE_PAGES = [
-    { key: 'input', label: 'IMAGE INPUT', value: () => imageSession ? 'READY' : 'SELECT' },
+    { key: 'input', label: 'IMAGE INPUT', value: () => selectedFileBuffer ? 'READY' : 'SELECT' },
     { key: 'scale', label: 'OUTPUT SCALE', nodes: [settingsContainer], value: () => `${qualitySelect.value} PX` },
     { key: 'palette', label: 'COLOR MATRIX', nodes: [paletteContainer], value: () => paletteAutoMode ? 'AUTO' : `#${currentPaletteId}` },
     { key: 'transform', label: 'TRANSFORM IMAGE', nodes: [transformContainer], value: () => `${rotationQuarterTurns * 90}°` },
@@ -362,6 +407,7 @@ function renderOnboarding() {
     const contextualCopy = mobileEditorMedia.matches ? slide.mobileCopy : slide.desktopCopy;
     onboardingCounter.textContent = `${String(activeOnboardingSlide + 1).padStart(2, '0')} / ${String(ONBOARDING_SLIDES.length).padStart(2, '0')}`;
     onboardingArt.dataset.slide = slide.art;
+    onboardingArt.innerHTML = ONBOARDING_ART[slide.art];
     onboardingEyebrow.textContent = slide.eyebrow;
     onboardingTitle.textContent = slide.title;
     onboardingCopy.textContent = contextualCopy || slide.copy;
@@ -398,7 +444,7 @@ function showOnboarding(force = false) {
 
 function showMobilePage(index, focusControl = false) {
     if (!mobileEditor.open) return;
-    if (!imageSession && index > 0) index = 0;
+    if (!selectedFileBuffer && index > 0) index = 0;
     activeMobilePage = Math.max(0, Math.min(index, MOBILE_PAGES.length - 1));
     const page = MOBILE_PAGES[activeMobilePage];
 
@@ -411,10 +457,10 @@ function showMobilePage(index, focusControl = false) {
         item.row.setAttribute('aria-hidden', String(!active));
     });
 
-    if (!imageSession && page.key === 'input') {
+    if (!selectedFileBuffer && page.key === 'input') {
         dropZone.classList.remove('hidden');
         mobilePreviewSlot.appendChild(dropZone);
-    } else if (imageSession) {
+    } else if (selectedFileBuffer) {
         dropZone.classList.add('hidden');
         previewContainer.classList.remove('hidden');
         mobilePreviewSlot.appendChild(previewContainer);
@@ -437,14 +483,14 @@ function showMobilePage(index, focusControl = false) {
     }
 
     mobileEditor.classList.toggle('mobile-input-page', page.key === 'input');
-    mobileEditor.classList.toggle('mobile-no-image', !imageSession);
+    mobileEditor.classList.toggle('mobile-no-image', !selectedFileBuffer);
     mobileEditor.classList.toggle('mobile-export-page', page.key === 'export');
     mobileAdjustmentCounter.textContent = `STEP ${String(activeMobilePage + 1).padStart(2, '0')} / ${MOBILE_PAGES.length}`;
     mobileAdjustmentTitle.textContent = page.label;
     mobileAdjustmentPrev.disabled = activeMobilePage === 0;
-    mobileAdjustmentNext.disabled = !imageSession || activeMobilePage === MOBILE_PAGES.length - 1;
+    mobileAdjustmentNext.disabled = !selectedFileBuffer || activeMobilePage === MOBILE_PAGES.length - 1;
     mobilePageReset.classList.toggle('hidden', page.key === 'input' || page.key === 'export');
-    mobileEditorNew.classList.toggle('hidden', !imageSession);
+    mobileEditorNew.classList.toggle('hidden', !selectedFileBuffer);
     mobileInputStatus.classList.toggle('hidden', page.key !== 'input' || !mobileInputStatus.textContent);
     syncMobilePageValue();
     mobilePageSlot.scrollTop = 0;
@@ -584,7 +630,7 @@ function debouncedPreviewUpdate() {
             const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
             renderPalettePreview(effectiveId);
         }
-    }, 2);
+    }, 100);
 }
 
 [adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(slider => {
@@ -628,12 +674,12 @@ function syncTransformUI() {
     syncMobilePageValue();
 }
 
-function applyTransform() {
+async function applyTransform() {
     syncTransformUI();
-    if (!imageSession || !wasmInitialized) return;
-    imageSession.set_transform(rotationQuarterTurns, flipHorizontal, flipVertical);
+    if (!selectedFileBuffer || !wasmInitialized) return;
+    await engine.setTransform(rotationQuarterTurns, flipHorizontal, flipVertical);
     const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
-    renderPalettePreview(effectiveId);
+    await renderPalettePreview(effectiveId);
 }
 
 function resetTransform() {
@@ -676,7 +722,7 @@ function resetCurrentMobilePage() {
     } else if (page.key === 'transform') {
         resetTransform();
     } else if (page.key === 'compression') {
-        compressionSelect.value = 'brotli';
+        compressionSelect.value = 'adaptive';
     } else if (page.key === 'route') {
         platformGrid.querySelector('[data-platform="whatsapp"]')?.click();
     }
@@ -743,9 +789,10 @@ platformGrid.addEventListener('click', (e) => {
 });
 
 // Palette rendering
-function renderPaletteSwatches(id) {
+async function renderPaletteSwatches(id) {
     paletteSwatches.innerHTML = '';
-    const colors = get_palette_colors(id);
+    const result = await engine.getPalette(id);
+    const colors = new Uint8Array(result.colors);
     for (let i = 0; i < 8; i++) {
         const div = document.createElement('div');
         div.className = 'palette-swatch';
@@ -756,22 +803,30 @@ function renderPaletteSwatches(id) {
 
 // Real-time palette preview on the image
 // Adjustments are passed as floats directly to Wasm — no JS canvas roundtrip
-function renderPalettePreview(paletteId) {
-    if (!imageSession || !wasmInitialized) return;
+async function renderPalettePreview(paletteId) {
+    if (!selectedFileBuffer || !wasmInitialized) return;
     try {
         const maxDim = parseInt(qualitySelect.value, 10);
         const [exp, con, sat, hue, tmp] = getAdjFloats();
 
-        // Cache layer via imageSession avoids re-decoding JPEG/PNG files per-slider change
-        const preview = imageSession.preview(maxDim, paletteId, exp, con, sat, hue, tmp);
-        const rgba = preview.get_rgba();
+        const preview = await engine.preview({
+            maxDimension: maxDim,
+            paletteId,
+            exposure: exp,
+            contrast: con,
+            saturation: sat,
+            hue,
+            temperature: tmp,
+        });
+        if (!preview) return;
+        const rgba = new Uint8ClampedArray(preview.rgba);
         const w = preview.width;
         const h = preview.height;
-        const actualPaletteId = preview.palette_id;
+        const actualPaletteId = preview.paletteId;
         lastAutoPaletteId = actualPaletteId;
         
         if (paletteAutoMode) {
-             renderPaletteSwatches(actualPaletteId);
+             await renderPaletteSwatches(actualPaletteId);
              paletteModeLabel.textContent = `Auto — Match #${actualPaletteId}`;
         }
         syncMobilePageValue();
@@ -785,7 +840,7 @@ function renderPalettePreview(paletteId) {
         previewCanvas.width = w;
         previewCanvas.height = h;
         const ctx = previewCanvas.getContext('2d');
-        const imageData = new ImageData(new Uint8ClampedArray(rgba), w, h);
+        const imageData = new ImageData(rgba, w, h);
         ctx.putImageData(imageData, 0, 0);
 
         // Show canvas, hide original img
@@ -794,8 +849,6 @@ function renderPalettePreview(paletteId) {
             previewFrame.appendChild(previewCanvas);
         }
         previewCanvas.style.display = 'block';
-
-        preview.free();
     } catch (e) {
         console.error('Preview error:', e);
     }
@@ -823,7 +876,7 @@ function updatePaletteUI() {
     }
     paletteSwatches.classList.add('active');
     if (!paletteAutoMode) {
-        renderPaletteSwatches(effectiveId);
+        void renderPaletteSwatches(effectiveId);
     }
     syncMobilePageValue();
 }
@@ -899,11 +952,11 @@ savePreviewBtn.addEventListener('click', () => {
 
 async function bootstrap() {
     try {
-        await init();
+        await engine.ready;
         wasmInitialized = true;
-        console.log("Wasm initialized.");
+        console.log(`NanoGlyph ${__NANOGLYPH_VERSION__} worker initialized.`);
 
-        if (imageSession) {
+        if (selectedFileBuffer) {
             encodeBtn.disabled = false;
             updatePaletteUI();
         }
@@ -913,7 +966,8 @@ async function bootstrap() {
             console.log(`Persistent storage ${granted ? 'granted' : 'denied'}.`);
         }
 
-        checkHash();
+        const routedLaunchUrl = await initializePlatform();
+        if (!routedLaunchUrl) checkHash();
     } catch (e) {
         console.error("Failed to initialize Wasm:", e);
     }
@@ -950,46 +1004,54 @@ function checkHash() {
             if (slashIdx !== -1) {
                 const meta = withoutLeadingSlash.substring(0, slashIdx).split('-');
                 if (meta.length === 2) {
-                    const index = parseInt(meta[0]);
-                    const total = parseInt(meta[1]);
                     const chunkData = withoutLeadingSlash.substring(slashIdx + 1);
-
-                    if (isNaN(index) || isNaN(total) || !chunkData) {
+                    const parsed = parseChunkMetadata(meta[0], meta[1], chunkData);
+                    if (!parsed) {
                         decoderStatus.textContent = "Invalid link format.";
                         return;
                     }
+                    const { index, total } = parsed;
 
-                    localStorage.setItem(`ng_chunk_${index}_${total}`, chunkData);
-
-                    // Check if we have all chunks
-                    let allChunks = '';
-                    let missing = false;
-                    for (let i = 1; i <= total; i++) {
-                        const c = localStorage.getItem(`ng_chunk_${i}_${total}`);
-                        if (!c) {
-                            missing = true;
-                            break;
-                        }
-                        allChunks += c;
+                    try {
+                        localStorage.setItem(`ng_chunk_${index}_${total}`, chunkData);
+                    } catch (error) {
+                        console.warn('Could not store NanoGlyph chunk:', error);
+                        decoderStatus.textContent = "Could not store this part on the device.";
+                        return;
                     }
 
-                    if (missing) {
+                    // Check if we have all chunks
+                    const collected = collectChunkPayload(
+                        total,
+                        part => localStorage.getItem(`ng_chunk_${part}_${total}`),
+                    );
+
+                    if (collected.status === 'missing') {
                         decoderStatus.textContent = `Received part ${index} of ${total}. Waiting for other parts...`;
                         decodedCanvas.classList.add('hidden');
                         return;
-                    } else {
-                        decoderStatus.textContent = "All parts received! Decoding...";
-                        for (let i = 1; i <= total; i++) {
-                            localStorage.removeItem(`ng_chunk_${i}_${total}`);
-                        }
-                        decodeAndRender(allChunks);
+                    }
+
+                    for (let i = 1; i <= total; i++) {
+                        localStorage.removeItem(`ng_chunk_${i}_${total}`);
+                    }
+                    if (collected.status === 'oversized') {
+                        decoderStatus.textContent = "Invalid or oversized NanoGlyph payload.";
                         return;
                     }
+
+                    decoderStatus.textContent = "All parts received! Decoding...";
+                    decodeAndRender(collected.payload);
+                    return;
                 }
             }
         }
 
         // Single payload
+        if (hash.length > MAX_NANOGLYPH_PAYLOAD_LENGTH || !/^[0-9A-Za-z]+$/.test(hash)) {
+            decoderStatus.textContent = "Invalid or oversized NanoGlyph payload.";
+            return;
+        }
         decoderStatus.textContent = "Decoding...";
         decodeAndRender(hash);
     } else {
@@ -1002,17 +1064,15 @@ function checkHash() {
     }
 }
 
-function decodeAndRender(base62Str) {
+async function decodeAndRender(base62Str) {
     try {
-        const decoded = decode_base62_to_image(base62Str);
-
-        const rgba = decoded.get_rgba();
+        const decoded = await engine.decode(base62Str);
+        const rgba = new Uint8ClampedArray(decoded.rgba);
         const width = decoded.width;
         const height = decoded.height;
-        const frameCount = decoded.frame_count;
+        const frameCount = decoded.frameCount;
 
         if (!width || !height || width === 0 || height === 0) {
-            decoded.free();
             decoderStatus.textContent = "Invalid image data (zero dimensions).";
             decoderStatus.classList.remove('hidden');
             return;
@@ -1041,13 +1101,12 @@ function decodeAndRender(base62Str) {
             drawFrame();
             window.animationInterval = setInterval(drawFrame, 200);
         } else {
-            const imageData = new ImageData(new Uint8ClampedArray(rgba), width, height);
+            const imageData = new ImageData(rgba, width, height);
             ctx.putImageData(imageData, 0, 0);
         }
 
         decoderStatus.classList.add('hidden');
         savePngBtn.classList.remove('hidden');
-        decoded.free();
     } catch (e) {
         console.error("Failed to decode:", e);
         decoderStatus.textContent = "Failed to decode image: " + e;
@@ -1099,10 +1158,8 @@ fileInput.addEventListener('change', (e) => {
 });
 
 function clearCurrentImage() {
-    if (imageSession) {
-        try { imageSession.free(); } catch (error) { }
-    }
-    imageSession = null;
+    imageGeneration++;
+    void engine.disposeImage().catch(error => console.warn('Image disposal failed:', error));
     selectedFileBuffer = null;
     if (currentPreviewObjectUrl) URL.revokeObjectURL(currentPreviewObjectUrl);
     currentPreviewObjectUrl = null;
@@ -1116,6 +1173,20 @@ function clearCurrentImage() {
     encodeBtn.disabled = true;
 }
 
+function setEncodingUi(isEncoding) {
+    appRoot.classList.toggle('is-encoding', isEncoding);
+    mobileEditor.classList.toggle('is-encoding', isEncoding);
+    encodeBtn.disabled = isEncoding || !selectedFileBuffer;
+
+    if (isEncoding) {
+        encodeBtn.setAttribute('aria-busy', 'true');
+        encodeBtn.innerHTML = '<span class="btn-label">ENCODING PIXELS</span><span aria-hidden="true">•••</span>';
+    } else {
+        encodeBtn.removeAttribute('aria-busy');
+        encodeBtn.innerHTML = '<span class="btn-label">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>';
+    }
+}
+
 function resetEditorOptions() {
     qualitySelect.value = '128';
     [warningHigh, warningZen, warningCosmic].forEach(node => node?.classList.add('hidden'));
@@ -1124,7 +1195,7 @@ function resetEditorOptions() {
     lastAutoPaletteId = 0;
     resetAllAdjustments();
     resetTransform();
-    compressionSelect.value = 'brotli';
+    compressionSelect.value = 'adaptive';
     selectedPlatformLimit = 4096;
     platformGrid.querySelectorAll('.platform-btn').forEach(button => {
         const selected = button.dataset.platform === 'whatsapp';
@@ -1136,8 +1207,7 @@ function resetEditorOptions() {
     chunkButtons.innerHTML = '';
     shareBtn.classList.remove('hidden');
     copyBtn.classList.remove('hidden');
-    encodeBtn.removeAttribute('aria-busy');
-    encodeBtn.innerHTML = '<span class="btn-label">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>';
+    setEncodingUi(false);
     updatePaletteUI();
     syncMobilePageValue();
 }
@@ -1202,6 +1272,11 @@ async function handleFile(file) {
         if (!mobileEditorMedia.matches) alert('Please select an image file.');
         return;
     }
+    if (file.size > 32 * 1024 * 1024) {
+        mobileInputStatus.textContent = 'IMAGE EXCEEDS THE 32 MIB INPUT LIMIT';
+        if (!mobileEditorMedia.matches) alert('Please select an image smaller than 32 MiB.');
+        return;
+    }
 
     const needsConversion = isHeifFormat(file);
     clearCurrentImage();
@@ -1217,7 +1292,7 @@ async function handleFile(file) {
         const arrayBuffer = await browserReadyBlob.arrayBuffer();
         await wasmReadyPromise;
         if (!wasmInitialized) throw new Error('The local image engine could not be initialized.');
-        initImageSession(new Uint8Array(arrayBuffer));
+        await initImageSession(new Uint8Array(arrayBuffer));
 
         if (currentPreviewObjectUrl) URL.revokeObjectURL(currentPreviewObjectUrl);
         currentPreviewObjectUrl = URL.createObjectURL(browserReadyBlob);
@@ -1269,37 +1344,48 @@ function getChunkLimit() {
 
 // Encoding Logic
 encodeBtn.addEventListener('click', async () => {
-    if (!imageSession) return;
+    if (!selectedFileBuffer) return;
+    const encodingGeneration = imageGeneration;
+    const encodingIsCurrent = () =>
+        encodingGeneration === imageGeneration && Boolean(selectedFileBuffer);
 
     try {
-        encodeBtn.disabled = true;
-        encodeBtn.setAttribute('aria-busy', 'true');
-        encodeBtn.innerHTML = '<span class="btn-label">ENCODING PIXELS</span><span aria-hidden="true">•••</span>';
-        appRoot.classList.add('is-encoding');
-        mobileEditor.classList.add('is-encoding');
+        setEncodingUi(true);
         resultContainer.classList.add('hidden');
 
         // Give the stepped dither overlay one full paint before the synchronous Wasm work begins.
         await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+        if (!encodingIsCurrent()) return;
 
         const maxDimension = parseInt(qualitySelect.value, 10);
-        const useBrotli = compressionSelect.value === 'brotli';
+        const compressionModes = { zlib: 0, adaptive: 1, maximum: 2 };
+        const compressionMode = compressionModes[compressionSelect.value] ?? 1;
 
         // Get adjustment values (floats)
         const [exp, con, sat, hue, tmp] = getAdjFloats();
 
         // Encode directly with Wasm, passing the adjustment values
-        const base62Str = paletteAutoMode
-            ? imageSession.encode_auto(maxDimension, useBrotli, exp, con, sat, hue, tmp)
-            : imageSession.encode_with_palette(maxDimension, currentPaletteId, useBrotli, exp, con, sat, hue, tmp);
+        const encoded = await engine.encode({
+            maxDimension,
+            paletteId: paletteAutoMode ? null : currentPaletteId,
+            compressionMode,
+            exposure: exp,
+            contrast: con,
+            saturation: sat,
+            hue,
+            temperature: tmp,
+        });
+        if (!encodingIsCurrent()) return;
+        const base62Str = encoded.base62;
 
-        const baseUrl = window.location.origin + window.location.pathname;
+        const baseUrl = CANONICAL_APP_URL;
         const platformLimit = Math.min(getChunkLimit(), BROWSER_URL_MAX);
-        // Reserve chars for URL overhead: baseUrl + "#/99-99/" (worst-case chunk prefix = 8 chars)
-        const urlOverhead = baseUrl.length + 8;
-        const chunkDataLimit = platformLimit - urlOverhead;
         // For single links the overhead is just baseUrl + "#" (1 char less)
         const singleUrlOverhead = baseUrl.length + 1;
+
+        if (base62Str.length > MAX_NANOGLYPH_PAYLOAD_LENGTH) {
+            throw new RangeError('Encoded payload exceeds the 8 MiB NanoGlyph link limit.');
+        }
 
         if (base62Str.length + singleUrlOverhead <= platformLimit) {
             // Single link — fits within the limit
@@ -1313,10 +1399,7 @@ encodeBtn.addEventListener('click', async () => {
             resultContainer.classList.remove('hidden');
         } else {
             // Payload exceeds limit — split into chunks
-            const chunks = [];
-            for (let i = 0; i < base62Str.length; i += chunkDataLimit) {
-                chunks.push(base62Str.substring(i, i + chunkDataLimit));
-            }
+            const chunks = splitPayloadIntoChunks(base62Str, baseUrl, platformLimit);
             const total = chunks.length;
 
             // URL box shows the full unbroken payload
@@ -1347,10 +1430,13 @@ encodeBtn.addEventListener('click', async () => {
                 shareChunkBtn.className = 'btn secondary';
                 shareChunkBtn.textContent = `Share Part ${idx + 1}`;
                 shareChunkBtn.addEventListener('click', async () => {
-                    const data = { url: chunkUrl };
-                    if (navigator.share) {
-                        try { await navigator.share(data); } catch (e) { console.log(e); }
-                    } else {
+                    try {
+                        const shared = await shareUrl(chunkUrl);
+                        if (shared) return;
+                    } catch (error) {
+                        console.log('Share canceled or failed', error);
+                    }
+                    {
                         copyToClipboard(chunkUrl).then(() => {
                             shareChunkBtn.textContent = 'Copied!';
                             setTimeout(() => { shareChunkBtn.textContent = `Share Part ${idx + 1}`; }, 1500);
@@ -1378,16 +1464,18 @@ encodeBtn.addEventListener('click', async () => {
         }
 
     } catch (e) {
+        if (encodingGeneration !== imageGeneration) return;
         console.error("Encoding error:", e);
-        alert("Failed to encode image. See console.");
+        alert(`Failed to encode image. ${e.message || e}`);
     } finally {
-        appRoot.classList.remove('is-encoding');
-        mobileEditor.classList.remove('is-encoding');
-        encodeBtn.disabled = false;
-        encodeBtn.removeAttribute('aria-busy');
-        encodeBtn.innerHTML = '<span class="btn-label">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>';
+        if (encodingGeneration === imageGeneration) {
+            setEncodingUi(false);
+        }
 
-        if (!resultContainer.classList.contains('hidden')) {
+        if (
+            encodingGeneration === imageGeneration
+            && !resultContainer.classList.contains('hidden')
+        ) {
             syncMobilePageValue();
             if (mobileEditor.open) {
                 requestAnimationFrame(() => {
@@ -1410,15 +1498,14 @@ shareBtn.addEventListener('click', async () => {
         ? urlBox.querySelector('div div')?.textContent || urlBox.textContent
         : urlBox.textContent;
 
-    const shareData = { url: firstUrl };
-
-    if (navigator.share) {
-        try {
-            await navigator.share(shareData);
-        } catch (e) {
-            console.log('Share canceled or failed', e);
-        }
-    } else {
+    try {
+        const shared = await shareUrl(firstUrl);
+        if (shared) return;
+    } catch (e) {
+        console.log('Share canceled or failed', e);
+        return;
+    }
+    {
         // Fallback: copy URL to clipboard
         copyToClipboard(firstUrl).then(() => {
             shareBtn.textContent = 'Link Copied!';

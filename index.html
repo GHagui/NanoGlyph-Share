@@ -8,7 +8,7 @@
     <meta name="description"
         content="NanoGlyph turns images into compact, shareable URLs entirely in your browser. No cloud, no upload, no server.">
     <link rel="manifest" href="./manifest.json">
-    <link rel="stylesheet" href="./style.css?v=25">
+    <link rel="stylesheet" href="./style.css">
     <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
     <link rel="apple-touch-icon" href="./icons/icon-192.png">
     <meta name="theme-color" content="#f3f0e8">
@@ -225,7 +225,8 @@
                                 <label for="compression-select">COMPRESSION</label>
                             </div>
                             <select id="compression-select">
-                                <option value="brotli" selected>Brotli / high compression</option>
+                                <option value="adaptive" selected>Brotli / adaptive — Recommended</option>
+                                <option value="maximum">Brotli / maximum compression</option>
                                 <option value="zlib">Zlib / compatibility</option>
                             </select>
                         </section>
@@ -360,11 +361,14 @@
             </header>
 
             <div class="onboarding-body">
-                <div id="onboarding-art" class="onboarding-art" data-slide="local" aria-hidden="true">
-                    <span></span><span></span><span></span><span></span>
-                    <span></span><span></span><span></span><span></span>
-                    <span></span><span></span><span></span><span></span>
-                    <span></span><span></span><span></span><span></span>
+                <div id="onboarding-art" class="onboarding-art" data-slide="photo-link" aria-hidden="true">
+                    <div class="art-photo-frame">
+                        <span class="art-photo-sun"></span>
+                        <span class="art-photo-mountain art-photo-mountain-back"></span>
+                        <span class="art-photo-mountain art-photo-mountain-front"></span>
+                    </div>
+                    <span class="art-photo-arrow">→</span>
+                    <div class="art-link-bar"><strong>HTTPS</strong><span></span></div>
                 </div>
                 <div class="onboarding-copy-panel">
                     <p id="onboarding-eyebrow" class="onboarding-eyebrow">01 / WHAT THIS APP DOES</p>
@@ -393,13 +397,7 @@
         </div>
     </dialog>
 
-    <script type="module" src="./app.js?v=25"></script>
-    <script>
-        if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('./sw.js')
-                .then(() => console.log('Service Worker Registered'));
-        }
-    </script>
+    <script type="module" src="./app.js"></script>
 </body>
 
 </html>

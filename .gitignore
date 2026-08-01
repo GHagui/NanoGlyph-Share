@@ -21,3 +21,11 @@ target
 #.idea/
 
 /poc_compression/
+/node_modules/
+/dist/
+/android/.gradle/
+/android/local.properties
+/android/app/build/
+/android/build/
+*.jks
+*.keystore

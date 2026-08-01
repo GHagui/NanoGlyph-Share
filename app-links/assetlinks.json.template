@@ -1,0 +1,15 @@
+[
+  {
+    "relation": [
+      "delegate_permission/common.handle_all_urls"
+    ],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "io.github.ghagui.nanoglyph",
+      "sha256_cert_fingerprints": [
+        "DIRECT_APK_CERTIFICATE_SHA256",
+        "PLAY_APP_SIGNING_CERTIFICATE_SHA256"
+      ]
+    }
+  }
+]

@@ -1,7 +1,7 @@
-pub mod pixel_data;
-pub mod palette;
-pub mod encoder;
 pub mod decoder;
+pub mod encoder;
+pub mod palette;
+pub mod pixel_data;
 pub mod session;
 
 use encoder::ImageAdj;
@@ -20,30 +20,63 @@ impl ImageSession {
         Ok(ImageSession { inner })
     }
 
-    pub fn set_transform(&mut self, rotation_quarter_turns: u8, flip_horizontal: bool, flip_vertical: bool) {
-        self.inner.set_transform(rotation_quarter_turns, flip_horizontal, flip_vertical);
+    pub fn set_transform(
+        &mut self,
+        rotation_quarter_turns: u8,
+        flip_horizontal: bool,
+        flip_vertical: bool,
+    ) {
+        self.inner
+            .set_transform(rotation_quarter_turns, flip_horizontal, flip_vertical);
     }
 
     pub fn preview(
         &mut self,
         max_dimension: u32,
         palette_id: u8,
-        exposure: f32, contrast: f32, saturation: f32, hue: f32, temperature: f32,
+        exposure: f32,
+        contrast: f32,
+        saturation: f32,
+        hue: f32,
+        temperature: f32,
     ) -> Result<PreviewImage, JsValue> {
-        let adj = ImageAdj { exposure, contrast, saturation, hue, temperature };
-        self.inner.preview(max_dimension, palette_id, &adj)
-            .map(|(width, height, rgba, actual_palette_id)| PreviewImage { width, height, rgba, palette_id: actual_palette_id })
+        let adj = ImageAdj {
+            exposure,
+            contrast,
+            saturation,
+            hue,
+            temperature,
+        };
+        self.inner
+            .preview(max_dimension, palette_id, &adj)
+            .map(|(width, height, rgba, actual_palette_id)| PreviewImage {
+                width,
+                height,
+                rgba,
+                palette_id: actual_palette_id,
+            })
             .map_err(|e| JsValue::from_str(&e))
     }
 
     pub fn encode_auto(
         &mut self,
         max_dimension: u32,
-        use_brotli: bool,
-        exposure: f32, contrast: f32, saturation: f32, hue: f32, temperature: f32,
+        compression_mode: u8,
+        exposure: f32,
+        contrast: f32,
+        saturation: f32,
+        hue: f32,
+        temperature: f32,
     ) -> Result<String, JsValue> {
-        let adj = ImageAdj { exposure, contrast, saturation, hue, temperature };
-        self.inner.encode(max_dimension, None, use_brotli, &adj)
+        let adj = ImageAdj {
+            exposure,
+            contrast,
+            saturation,
+            hue,
+            temperature,
+        };
+        self.inner
+            .encode(max_dimension, None, compression_mode, &adj)
             .map_err(|e| JsValue::from_str(&e))
     }
 
@@ -51,11 +84,22 @@ impl ImageSession {
         &mut self,
         max_dimension: u32,
         palette_id: u8,
-        use_brotli: bool,
-        exposure: f32, contrast: f32, saturation: f32, hue: f32, temperature: f32,
+        compression_mode: u8,
+        exposure: f32,
+        contrast: f32,
+        saturation: f32,
+        hue: f32,
+        temperature: f32,
     ) -> Result<String, JsValue> {
-        let adj = ImageAdj { exposure, contrast, saturation, hue, temperature };
-        self.inner.encode(max_dimension, Some(palette_id), use_brotli, &adj)
+        let adj = ImageAdj {
+            exposure,
+            contrast,
+            saturation,
+            hue,
+            temperature,
+        };
+        self.inner
+            .encode(max_dimension, Some(palette_id), compression_mode, &adj)
             .map_err(|e| JsValue::from_str(&e))
     }
 }
@@ -86,6 +130,10 @@ impl PreviewImage {
     pub fn get_rgba(&self) -> Vec<u8> {
         self.rgba.clone()
     }
+
+    pub fn take_rgba(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.rgba)
+    }
 }
 
 #[wasm_bindgen]
@@ -101,12 +149,21 @@ impl DecodedImage {
     pub fn get_rgba(&self) -> Vec<u8> {
         self.rgba.clone()
     }
+
+    pub fn take_rgba(&mut self) -> Vec<u8> {
+        std::mem::take(&mut self.rgba)
+    }
 }
 
 #[wasm_bindgen]
 pub fn decode_base62_to_image(base62_str: &str) -> Result<DecodedImage, JsValue> {
     decoder::decode_base62_to_rgba(base62_str)
-        .map(|(width, height, frame_count, rgba)| DecodedImage { width, height, frame_count, rgba })
+        .map(|(width, height, frame_count, rgba)| DecodedImage {
+            width,
+            height,
+            frame_count,
+            rgba,
+        })
         .map_err(|e| JsValue::from_str(&e))
 }
 
@@ -150,7 +207,13 @@ pub struct NanoGlyphHeader {
 }
 
 impl NanoGlyphHeader {
-    pub fn new(width: u16, height: u16, palette_id: u8, is_animation: bool, frame_count: u8) -> Self {
+    pub fn new(
+        width: u16,
+        height: u16,
+        palette_id: u8,
+        is_animation: bool,
+        frame_count: u8,
+    ) -> Self {
         Self {
             version: 1,
             width,
@@ -168,8 +231,10 @@ impl NanoGlyphHeader {
         let h = self.height.to_le_bytes();
         [
             self.version,
-            w[0], w[1],
-            h[0], h[1],
+            w[0],
+            w[1],
+            h[0],
+            h[1],
             self.palette_id,
             self.flags.to_u8(),
         ]
@@ -198,7 +263,10 @@ pub struct NanoGlyphPayload {
 impl NanoGlyphPayload {
     #[wasm_bindgen(constructor)]
     pub fn new(header: NanoGlyphHeader, packed_pixels: Vec<u8>) -> Self {
-        Self { header, packed_pixels }
+        Self {
+            header,
+            packed_pixels,
+        }
     }
 
     pub fn to_binary(&self) -> Vec<u8> {
@@ -216,17 +284,17 @@ impl NanoGlyphPayload {
         header_bytes.copy_from_slice(&binary[0..7]);
         let header = NanoGlyphHeader::from_bytes(&header_bytes);
         let packed_pixels = binary[7..].to_vec();
-        
+
         Ok(Self {
             header,
             packed_pixels,
         })
     }
-    
+
     pub fn get_header(&self) -> NanoGlyphHeader {
         self.header
     }
-    
+
     pub fn get_packed_pixels(&self) -> Vec<u8> {
         self.packed_pixels.clone()
     }

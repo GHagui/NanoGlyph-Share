@@ -17,19 +17,19 @@ pub fn pack_pixels(indices: &[u8]) -> Vec<u8> {
             // Need to split across two bytes
             let bits_in_first = 8 - bits_in_current;
             let bits_in_second = 3 - bits_in_first;
-            
+
             current_byte |= val >> bits_in_second;
             packed.push(current_byte);
-            
+
             current_byte = (val & ((1 << bits_in_second) - 1)) << (8 - bits_in_second);
             bits_in_current = bits_in_second;
         }
     }
-    
+
     if bits_in_current > 0 {
         packed.push(current_byte);
     }
-    
+
     packed
 }
 
@@ -42,7 +42,7 @@ pub fn unpack_pixels(packed: &[u8], num_pixels: usize) -> Vec<u8> {
         if byte_idx >= packed.len() {
             break; // Stop if we run out of bytes
         }
-        
+
         let mut val = 0u8;
         if bit_offset + 3 <= 8 {
             val = (packed[byte_idx] >> (8 - bit_offset - 3)) & 0b111;
@@ -54,10 +54,10 @@ pub fn unpack_pixels(packed: &[u8], num_pixels: usize) -> Vec<u8> {
         } else {
             let bits_in_first = 8 - bit_offset;
             let bits_in_second = 3 - bits_in_first;
-            
+
             val |= (packed[byte_idx] & ((1 << bits_in_first) - 1)) << bits_in_second;
             byte_idx += 1;
-            
+
             if byte_idx < packed.len() {
                 val |= (packed[byte_idx] >> (8 - bits_in_second)) & ((1 << bits_in_second) - 1);
             }
@@ -65,7 +65,7 @@ pub fn unpack_pixels(packed: &[u8], num_pixels: usize) -> Vec<u8> {
         }
         indices.push(val);
     }
-    
+
     indices
 }
 
@@ -77,10 +77,10 @@ mod tests {
     fn test_pack_unpack_pixels() {
         let indices = vec![1, 2, 3, 4, 5, 6, 7, 0, 1, 2];
         let packed = pack_pixels(&indices);
-        
+
         // 10 pixels * 3 bits = 30 bits -> 4 bytes
         assert_eq!(packed.len(), 4);
-        
+
         let unpacked = unpack_pixels(&packed, indices.len());
         assert_eq!(unpacked, indices);
     }

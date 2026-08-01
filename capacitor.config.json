@@ -1,0 +1,15 @@
+{
+  "appId": "io.github.ghagui.nanoglyph",
+  "appName": "NanoGlyph",
+  "webDir": "dist",
+  "android": {
+    "backgroundColor": "#f3f0e8",
+    "allowMixedContent": false
+  },
+  "plugins": {
+    "SystemBars": {
+      "style": "LIGHT",
+      "insetsHandling": "css"
+    }
+  }
+}

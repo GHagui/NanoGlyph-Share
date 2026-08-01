@@ -1,8 +1,4 @@
 #!/bin/bash
-set -e
+set -euo pipefail
 
-echo "Building NanoGlyph Core WebAssembly module..."
-cd nanoglyph_core
-wasm-pack build --target web
-
-echo "Build complete."
+npm run build:web

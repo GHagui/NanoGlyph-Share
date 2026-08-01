@@ -1,0 +1,79 @@
+name: Release Android
+
+on:
+  push:
+    tags: ['v*.*.*']
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        env:
+          WASM_PACK_VERSION: 0.15.0
+          WASM_PACK_SHA256: c09f971ecaed9a2efc80fdcea7a00ef6b53c7fadc8c57d1f61b53a6aa66b668a
+        run: |
+          archive="wasm-pack-v${WASM_PACK_VERSION}-x86_64-unknown-linux-musl.tar.gz"
+          archive_path="${RUNNER_TEMP}/${archive}"
+          install_dir="${RUNNER_TEMP}/wasm-pack-bin"
+          curl --fail --location --proto '=https' --tlsv1.2 --retry 3 \
+            --output "${archive_path}" \
+            "https://github.com/wasm-bindgen/wasm-pack/releases/download/v${WASM_PACK_VERSION}/${archive}"
+          printf '%s  %s\n' "${WASM_PACK_SHA256}" "${archive_path}" | sha256sum --check --strict
+          mkdir -p "${install_dir}"
+          tar --extract --gzip --file "${archive_path}" \
+            --directory "${install_dir}" --strip-components=1 \
+            "wasm-pack-v${WASM_PACK_VERSION}-x86_64-unknown-linux-musl/wasm-pack"
+          "${install_dir}/wasm-pack" --version
+          printf '%s\n' "${install_dir}" >> "${GITHUB_PATH}"
+
+      - run: npm ci
+      - run: npm run test:rust
+      - run: npm run cap:sync
+
+      - name: Restore release keystore
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64"
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/release.jks
+
+      - name: Build signed APK and AAB
+        working-directory: android
+        env:
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/release.jks
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          VERSION_NAME="${GITHUB_REF_NAME#v}"
+          ./gradlew assembleRelease bundleRelease \
+            -PversionCode="${GITHUB_RUN_NUMBER}" \
+            -PversionName="${VERSION_NAME}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nanoglyph-${{ github.ref_name }}-android
+          path: |
+            android/app/build/outputs/apk/release/app-release.apk
+            android/app/build/outputs/bundle/release/app-release.aab
