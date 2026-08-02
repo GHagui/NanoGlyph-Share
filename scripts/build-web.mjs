@@ -3,6 +3,7 @@ import { execFileSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
+import locales from '../locales/index.js';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const dist = join(root, 'dist');
@@ -47,8 +48,20 @@ await build({
   },
 });
 
-for (const file of ['index.html', 'style.css', 'manifest.json', 'wasm-worker.js']) {
+for (const file of ['index.html', 'style.css', 'wasm-worker.js']) {
   await cp(join(root, file), join(dist, file));
+}
+
+const manifestTemplate = JSON.parse(await readFile(join(root, 'manifest.json'), 'utf8'));
+for (const locale of Object.values(locales)) {
+  const localizedManifest = {
+    ...manifestTemplate,
+    name: locale.messages['manifest.name'],
+    description: locale.messages['manifest.description'],
+    lang: locale.code,
+  };
+  const filename = locale.code === 'en' ? 'manifest.json' : `manifest.${locale.code}.json`;
+  await writeFile(join(dist, filename), `${JSON.stringify(localizedManifest, null, 2)}\n`);
 }
 
 await cp(join(root, 'icons'), join(dist, 'icons'), { recursive: true });

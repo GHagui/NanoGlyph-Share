@@ -1,3 +1,5 @@
+export const MAXIMUM_BROTLI_COMPRESSION_MODE = 2;
+
 export class NanoGlyphEngine {
   constructor() {
     this.worker = new Worker('./wasm-worker.js', { type: 'module' });
@@ -82,7 +84,10 @@ export class NanoGlyphEngine {
 
   async encode(options) {
     await this.ready;
-    return this.call('encode', options);
+    return this.call('encode', {
+      ...options,
+      compressionMode: MAXIMUM_BROTLI_COMPRESSION_MODE,
+    });
   }
 
   async decode(base62) {

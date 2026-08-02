@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>NanoGlyph — Images Become Links</title>
-    <meta name="description"
+    <title data-i18n="meta.title">NanoGlyph — Images Become Links</title>
+    <meta name="description" data-i18n-content="meta.description"
         content="NanoGlyph turns images into compact, shareable URLs entirely in your browser. No cloud, no upload, no server.">
     <link rel="manifest" href="./manifest.json">
     <link rel="stylesheet" href="./style.css">
@@ -20,25 +20,26 @@
     <div id="app">
         <header class="site-header">
             <div class="topbar">
-                <a href="./" id="home-link" class="brand" aria-label="NanoGlyph home">
+                <a href="./" id="home-link" class="brand" aria-label="NanoGlyph home" data-i18n-aria-label="header.home">
                     <span class="brand-mark">
                         <img src="./icons/icon-192.png" alt="" class="header-icon" height="64" width="64">
                     </span>
                     <span class="brand-name">NANO<span>GLYPH</span></span>
                 </a>
 
-                <div class="system-flags" aria-label="Application properties">
+                <div class="system-flags" aria-label="Application properties" data-i18n-aria-label="header.properties">
                     <button type="button" id="desktop-info" class="system-info"
-                        aria-label="Open NanoGlyph introduction">INFO</button>
-                    <span><i class="status-dot" aria-hidden="true"></i> OFFLINE</span>
-                    <span>ZERO SERVER</span>
+                        aria-label="Open NanoGlyph introduction" data-i18n="header.info" data-i18n-aria-label="header.infoAria">INFO</button>
+                    <label class="language-picker"><span class="sr-only" data-i18n="language.label">Language</span><select data-locale-select aria-label="Language" data-i18n-aria-label="language.label"><option value="en">English</option><option value="pt-BR">Português (Brasil)</option></select></label>
+                    <span><i class="status-dot" aria-hidden="true"></i> <span class="status-text" data-i18n="header.offline">OFFLINE</span></span>
+                    <span data-i18n="header.zeroServer">ZERO SERVER</span>
                 </div>
             </div>
 
             <div class="hero-copy">
-                <p class="eyebrow">PIXEL TRANSMISSION TOOL / 001</p>
-                <h1>IMAGE <span aria-hidden="true">→</span> URL</h1>
-                <p class="hero-description">Compress an image into a link. The pixels travel inside the message —
+                <p class="eyebrow" data-i18n="hero.eyebrow">PIXEL TRANSMISSION TOOL / 001</p>
+                <h1><span data-i18n="hero.title">IMAGE</span> <span aria-hidden="true">→</span> URL</h1>
+                <p class="hero-description" data-i18n="hero.description">Compress an image into a link. The pixels travel inside the message —
                     nothing is uploaded anywhere.</p>
             </div>
         </header>
@@ -47,37 +48,37 @@
             <section class="card tool-card" aria-labelledby="encoder-title">
                 <div class="panel-heading">
                     <div>
-                        <p class="panel-index">01 / INPUT</p>
-                        <h2 id="encoder-title">BUILD A GLYPH</h2>
+                        <p class="panel-index" data-i18n="encoder.inputIndex">01 / INPUT</p>
+                        <h2 id="encoder-title" data-i18n="encoder.title">BUILD A GLYPH</h2>
                     </div>
-                    <span class="local-badge">LOCAL ONLY</span>
+                    <span class="local-badge" data-i18n="encoder.localOnly">LOCAL ONLY</span>
                 </div>
 
                 <div class="drop-zone" id="drop-zone" role="button" tabindex="0"
-                    aria-label="Choose an image or drop one here">
+                    aria-label="Choose an image or drop one here" data-i18n-aria-label="drop.aria">
                     <div class="drop-zone-art" aria-hidden="true">
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                         <span></span><span></span><span></span><span></span>
                     </div>
-                    <p class="drop-command">DROP IMAGE HERE</p>
-                    <p class="drop-note">or tap to browse / PNG · JPG · GIF · WEBP · HEIC</p>
-                    <span class="drop-action">SELECT FILE <b aria-hidden="true">↗</b></span>
+                    <p class="drop-command" data-i18n="drop.command">DROP IMAGE HERE</p>
+                    <p class="drop-note" data-i18n="drop.note">or tap to browse / PNG · JPG · GIF · WEBP · HEIC</p>
+                    <span class="drop-action"><span data-i18n="drop.action">SELECT FILE</span> <b aria-hidden="true">↗</b></span>
                     <input type="file" id="file-input" accept="image/*,.heif,.heic,image/heif,image/heic" hidden>
                 </div>
 
                 <div class="editor-workspace">
                     <section id="preview-container" class="preview-panel hidden" aria-labelledby="preview-title">
                         <div class="module-heading">
-                            <span id="preview-title">LIVE PIXEL PREVIEW</span>
-                            <span class="module-status">8 COLORS</span>
+                            <span id="preview-title" data-i18n="preview.title">LIVE PIXEL PREVIEW</span>
+                            <span class="module-status" data-i18n="preview.colors">8 COLORS</span>
                         </div>
                         <div class="preview-frame">
-                            <img id="image-preview" src="" alt="Selected image preview">
+                            <img id="image-preview" src="" alt="Selected image preview" data-i18n-alt="preview.alt">
                         </div>
                         <div class="preview-scale" aria-hidden="true">
-                            <span>0</span><span>PIXEL SPACE</span><span>100</span>
+                            <span>0</span><span data-i18n="preview.pixelSpace">PIXEL SPACE</span><span>100</span>
                         </div>
                     </section>
 
@@ -85,31 +86,28 @@
                         <section id="settings-container" class="control-block hidden">
                             <div class="control-heading">
                                 <span class="control-number">01</span>
-                                <label for="quality-select">OUTPUT SCALE</label>
+                                <label for="quality-select" data-i18n="quality.label">OUTPUT SCALE</label>
                             </div>
                             <select id="quality-select">
-                                <option value="64">Low / 64px</option>
-                                <option value="96">Low–Medium / 96px</option>
-                                <option value="128" selected>Medium / 128px — Recommended</option>
-                                <option value="160">Medium–High / 160px</option>
-                                <option value="192">High / 192px</option>
-                                <option value="224">Very High / 224px</option>
-                                <option value="256">Extreme / 256px</option>
-                                <option value="512">Maximum / 512px</option>
-                                <option value="1024">Zen / 1024px</option>
-                                <option value="2048">Cosmic / 2048px</option>
+                                <option value="64" data-i18n="quality.64">Low / 64px</option>
+                                <option value="96" data-i18n="quality.96">Low–Medium / 96px</option>
+                                <option value="128" selected data-i18n="quality.128">Medium / 128px — Recommended</option>
+                                <option value="160" data-i18n="quality.160">Medium–High / 160px</option>
+                                <option value="192" data-i18n="quality.192">High / 192px</option>
+                                <option value="224" data-i18n="quality.224">Very High / 224px</option>
+                                <option value="256" data-i18n="quality.256">Extreme / 256px</option>
+                                <option value="512" data-i18n="quality.512">Maximum / 512px</option>
+                                <option value="1024" data-i18n="quality.1024">Zen / 1024px</option>
+                                <option value="2048" data-i18n="quality.2048">Cosmic / 2048px</option>
                             </select>
                             <div class="message-box warning hidden" id="warning-high">
-                                <strong>LONG SIGNAL:</strong> 256px and 512px create huge URLs that can be truncated.
-                                Best used for local saves.
+                                <strong data-i18n="warning.highTitle">LONG SIGNAL:</strong> <span data-i18n="warning.highBody">256px and 512px create huge URLs that can be truncated. Best used for local saves.</span>
                             </div>
                             <div class="message-box danger hidden" id="warning-zen">
-                                <strong>HEAVY COMPUTE:</strong> 1024px can freeze slower devices while processing
-                                millions of pixels.
+                                <strong data-i18n="warning.zenTitle">HEAVY COMPUTE:</strong> <span data-i18n="warning.zenBody">1024px can freeze slower devices while processing millions of pixels.</span>
                             </div>
                             <div class="message-box fatal hidden" id="warning-cosmic">
-                                <strong>COSMIC LIMIT:</strong> 2048px pushes the engine to its physical limit. Expect
-                                serious CPU and memory pressure.
+                                <strong data-i18n="warning.cosmicTitle">COSMIC LIMIT:</strong> <span data-i18n="warning.cosmicBody">2048px pushes the engine to its physical limit. Expect serious CPU and memory pressure.</span>
                             </div>
                         </section>
 
@@ -118,20 +116,20 @@
                                 <div class="palette-header control-heading">
                                     <div>
                                         <span class="control-number">02</span>
-                                        <label>COLOR MATRIX</label>
+                                        <label data-i18n="palette.label">COLOR MATRIX</label>
                                     </div>
-                                    <div class="palette-toggle-group" aria-label="Palette selection mode">
+                                    <div class="palette-toggle-group" aria-label="Palette selection mode" data-i18n-aria-label="palette.modeAria">
                                         <button type="button" id="palette-btn-auto"
-                                            class="palette-toggle active" aria-pressed="true">AUTO</button>
+                                            class="palette-toggle active" aria-pressed="true" data-i18n="palette.auto">AUTO</button>
                                         <button type="button" id="palette-btn-manual"
-                                            class="palette-toggle" aria-pressed="false">MANUAL</button>
+                                            class="palette-toggle" aria-pressed="false" data-i18n="palette.manual">MANUAL</button>
                                     </div>
                                 </div>
-                                <div class="palette-swatches active" id="palette-swatches" aria-label="Current palette"></div>
+                                <div class="palette-swatches active" id="palette-swatches" aria-label="Current palette" data-i18n-aria-label="palette.currentAria"></div>
                                 <div class="palette-nav">
-                                    <button type="button" id="palette-prev" aria-label="Previous palette">←</button>
-                                    <span class="palette-mode-label" id="palette-mode-label">Auto / best match</span>
-                                    <button type="button" id="palette-next" aria-label="Next palette">→</button>
+                                    <button type="button" id="palette-prev" aria-label="Previous palette" data-i18n-aria-label="palette.previousAria">←</button>
+                                    <span class="palette-mode-label" id="palette-mode-label" data-i18n="palette.bestMatch">Auto / best match</span>
+                                    <button type="button" id="palette-next" aria-label="Next palette" data-i18n-aria-label="palette.nextAria">→</button>
                                 </div>
                             </div>
                         </section>
@@ -139,102 +137,89 @@
                         <section id="transform-container" class="control-block hidden">
                             <div class="control-heading">
                                 <span class="control-number">03</span>
-                                <label>TRANSFORM IMAGE</label>
+                                <label data-i18n="transform.label">TRANSFORM IMAGE</label>
                             </div>
-                            <div class="transform-grid" role="group" aria-label="Image rotation and mirroring">
-                                <button type="button" id="transform-left" class="transform-btn" aria-label="Rotate 90 degrees left">↶ <span>LEFT</span></button>
-                                <button type="button" id="transform-right" class="transform-btn" aria-label="Rotate 90 degrees right">↷ <span>RIGHT</span></button>
-                                <button type="button" id="transform-flip-horizontal" class="transform-btn" aria-pressed="false">↔ <span>FLIP H</span></button>
-                                <button type="button" id="transform-flip-vertical" class="transform-btn" aria-pressed="false">↕ <span>FLIP V</span></button>
+                            <div class="transform-grid" role="group" aria-label="Image rotation and mirroring" data-i18n-aria-label="transform.groupAria">
+                                <button type="button" id="transform-left" class="transform-btn" aria-label="Rotate 90 degrees left" data-i18n-aria-label="transform.leftAria">↶ <span data-i18n="transform.left">LEFT</span></button>
+                                <button type="button" id="transform-right" class="transform-btn" aria-label="Rotate 90 degrees right" data-i18n-aria-label="transform.rightAria">↷ <span data-i18n="transform.right">RIGHT</span></button>
+                                <button type="button" id="transform-flip-horizontal" class="transform-btn" aria-pressed="false">↔ <span data-i18n="transform.flipH">FLIP H</span></button>
+                                <button type="button" id="transform-flip-vertical" class="transform-btn" aria-pressed="false">↕ <span data-i18n="transform.flipV">FLIP V</span></button>
                             </div>
                             <div class="transform-status-row">
                                 <span id="transform-status">0° / ORIGINAL</span>
-                                <button type="button" id="transform-reset" class="mini-reset">RESET</button>
+                                <button type="button" id="transform-reset" class="mini-reset" data-i18n="common.reset">RESET</button>
                             </div>
                         </section>
 
                         <section id="adjustments-container" class="control-block hidden">
                             <div class="expandable-section" id="adjustments-section">
                                 <button type="button" class="expandable-header" id="adjustments-toggle"
-                                    aria-expanded="false" aria-controls="adjustments-body">
+                                    aria-expanded="true" aria-controls="adjustments-body">
                                     <span class="control-number">04</span>
-                                    <span class="expandable-title">IMAGE TUNING</span>
-                                    <span class="expandable-badge" id="adjustments-badge">DEFAULT</span>
+                                    <span class="expandable-title" data-i18n="adjustments.label">IMAGE TUNING</span>
+                                    <span class="expandable-badge" id="adjustments-badge" data-i18n="adjustments.default">DEFAULT</span>
                                     <span class="expandable-chevron" aria-hidden="true">→</span>
                                 </button>
-                                <div class="expandable-body" id="adjustments-body" aria-hidden="true">
+                                <div class="expandable-body open" id="adjustments-body" aria-hidden="false">
                                     <div class="adj-row">
                                         <div class="adj-label-row">
-                                            <label class="adj-label" for="adj-exposure">Exposure</label>
+                                            <label class="adj-label" for="adj-exposure" data-i18n="adjustments.exposure">Exposure</label>
                                             <span class="adj-value" id="adj-exposure-val">0</span>
                                             <button type="button" class="adj-reset" data-target="adj-exposure"
-                                                title="Reset exposure" aria-label="Reset exposure">↺</button>
+                                                title="Reset exposure" aria-label="Reset exposure" data-i18n-title="adjustments.resetExposure" data-i18n-aria-label="adjustments.resetExposure">↺</button>
                                         </div>
                                         <input type="range" id="adj-exposure" class="adj-slider" min="-100" max="100"
                                             value="0" step="1">
                                     </div>
                                     <div class="adj-row">
                                         <div class="adj-label-row">
-                                            <label class="adj-label" for="adj-contrast">Contrast</label>
+                                            <label class="adj-label" for="adj-contrast" data-i18n="adjustments.contrast">Contrast</label>
                                             <span class="adj-value" id="adj-contrast-val">0</span>
                                             <button type="button" class="adj-reset" data-target="adj-contrast"
-                                                title="Reset contrast" aria-label="Reset contrast">↺</button>
+                                                title="Reset contrast" aria-label="Reset contrast" data-i18n-title="adjustments.resetContrast" data-i18n-aria-label="adjustments.resetContrast">↺</button>
                                         </div>
                                         <input type="range" id="adj-contrast" class="adj-slider" min="-100" max="100"
                                             value="0" step="1">
                                     </div>
                                     <div class="adj-row">
                                         <div class="adj-label-row">
-                                            <label class="adj-label" for="adj-saturation">Saturation</label>
+                                            <label class="adj-label" for="adj-saturation" data-i18n="adjustments.saturation">Saturation</label>
                                             <span class="adj-value" id="adj-saturation-val">0</span>
                                             <button type="button" class="adj-reset" data-target="adj-saturation"
-                                                title="Reset saturation" aria-label="Reset saturation">↺</button>
+                                                title="Reset saturation" aria-label="Reset saturation" data-i18n-title="adjustments.resetSaturation" data-i18n-aria-label="adjustments.resetSaturation">↺</button>
                                         </div>
                                         <input type="range" id="adj-saturation" class="adj-slider" min="-100" max="100"
                                             value="0" step="1">
                                     </div>
                                     <div class="adj-row">
                                         <div class="adj-label-row">
-                                            <label class="adj-label" for="adj-hue">Hue rotate</label>
+                                            <label class="adj-label" for="adj-hue" data-i18n="adjustments.hue">Hue rotate</label>
                                             <span class="adj-value" id="adj-hue-val">0°</span>
                                             <button type="button" class="adj-reset" data-target="adj-hue"
-                                                title="Reset hue" aria-label="Reset hue">↺</button>
+                                                title="Reset hue" aria-label="Reset hue" data-i18n-title="adjustments.resetHue" data-i18n-aria-label="adjustments.resetHue">↺</button>
                                         </div>
                                         <input type="range" id="adj-hue" class="adj-slider" min="-180" max="180"
                                             value="0" step="1">
                                     </div>
                                     <div class="adj-row">
                                         <div class="adj-label-row">
-                                            <label class="adj-label" for="adj-temperature">Temperature</label>
+                                            <label class="adj-label" for="adj-temperature" data-i18n="adjustments.temperature">Temperature</label>
                                             <span class="adj-value" id="adj-temperature-val">0</span>
                                             <button type="button" class="adj-reset" data-target="adj-temperature"
-                                                title="Reset temperature" aria-label="Reset temperature">↺</button>
+                                                title="Reset temperature" aria-label="Reset temperature" data-i18n-title="adjustments.resetTemperature" data-i18n-aria-label="adjustments.resetTemperature">↺</button>
                                         </div>
                                         <input type="range" id="adj-temperature" class="adj-slider" min="-100" max="100"
                                             value="0" step="1">
                                     </div>
-                                    <button type="button" class="btn outline adj-reset-all" id="adj-reset-all">↺ RESET
-                                        ALL</button>
+                                    <button type="button" class="btn outline adj-reset-all" id="adj-reset-all" data-i18n="adjustments.resetAll">↺ RESET ALL</button>
                                 </div>
                             </div>
                         </section>
 
-                        <section id="compression-container" class="control-block hidden">
-                            <div class="control-heading">
-                                <span class="control-number">05</span>
-                                <label for="compression-select">COMPRESSION</label>
-                            </div>
-                            <select id="compression-select">
-                                <option value="adaptive" selected>Brotli / adaptive — Recommended</option>
-                                <option value="maximum">Brotli / maximum compression</option>
-                                <option value="zlib">Zlib / compatibility</option>
-                            </select>
-                        </section>
-
                         <section id="platform-container" class="control-block hidden">
                             <div class="control-heading">
-                                <span class="control-number">06</span>
-                                <label>TRANSMISSION ROUTE</label>
+                                <span class="control-number">05</span>
+                                <label data-i18n="platform.label">TRANSMISSION ROUTE</label>
                             </div>
                             <div class="platform-grid" id="platform-grid">
                                 <button class="platform-btn selected" data-platform="whatsapp" data-limit="4096"
@@ -261,52 +246,52 @@
 
                 <div class="action-block" id="action-block">
                     <div class="action-copy">
-                        <span>YOUR IMAGE NEVER LEAVES THIS DEVICE</span>
-                        <span>RUST + WASM / BAYER DITHER</span>
+                        <span data-i18n="action.private">YOUR IMAGE NEVER LEAVES THIS DEVICE</span>
+                        <span data-i18n="action.engine">RUST + WASM / BAYER DITHER</span>
                     </div>
                     <button id="encode-btn" class="btn primary" disabled>
-                        <span class="btn-label">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>
+                        <span class="btn-label" data-i18n="action.encode">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>
                     </button>
-                    <button id="save-preview-btn" class="btn outline hidden">SAVE PIXEL PNG ↓</button>
+                    <button id="save-preview-btn" class="btn outline hidden" data-i18n="action.savePng">SAVE PIXEL PNG ↓</button>
                 </div>
             </section>
 
             <section id="result-container" class="card result-card hidden" aria-live="polite">
                 <div class="panel-heading">
-                    <div><p class="panel-index">02 / OUTPUT</p><h2>GLYPH READY</h2></div>
-                    <span class="result-signal">SIGNAL OK</span>
+                    <div><p class="panel-index" data-i18n="result.outputIndex">02 / OUTPUT</p><h2 data-i18n="result.title">GLYPH READY</h2></div>
+                    <span class="result-signal" data-i18n="result.signal">SIGNAL OK</span>
                 </div>
-                <p class="result-intro">The complete image is packed inside this address.</p>
+                <p class="result-intro" data-i18n="result.intro">The complete image is packed inside this address.</p>
                 <div class="url-box" id="url-box" tabindex="0"></div>
                 <div id="chunk-buttons"></div>
                 <div class="result-actions">
-                    <button id="share-btn" class="btn secondary">SHARE LINK ↗</button>
-                    <button id="copy-btn" class="btn outline">COPY LINK</button>
+                    <button id="share-btn" class="btn secondary" data-i18n="result.share">SHARE LINK ↗</button>
+                    <button id="copy-btn" class="btn outline" data-i18n="result.copy">COPY LINK</button>
                 </div>
             </section>
         </main>
 
         <main id="decoder-view" class="hidden">
             <section class="decoder-hero">
-                <p class="eyebrow">INCOMING GLYPH / DECODER</p>
-                <h1>PIXELS RECEIVED</h1>
+                <p class="eyebrow" data-i18n="decoder.eyebrow">INCOMING GLYPH / DECODER</p>
+                <h1 data-i18n="decoder.title">PIXELS RECEIVED</h1>
                 <div id="decoded-container"><canvas id="decoded-canvas"></canvas></div>
             </section>
             <section class="card decoder-card">
-                <p id="decoder-status" role="status" aria-live="polite">DECODING SIGNAL…</p>
-                <button id="save-png-btn" class="btn secondary hidden">SAVE PIXEL PNG ↓</button>
-                <button id="reset-btn" class="btn outline">CREATE YOUR OWN →</button>
+                <p id="decoder-status" role="status" aria-live="polite" data-i18n="decoder.decodingSignal">DECODING SIGNAL…</p>
+                <button id="save-png-btn" class="btn secondary hidden" data-i18n="action.savePng">SAVE PIXEL PNG ↓</button>
+                <button id="reset-btn" class="btn outline" data-i18n="decoder.createOwn">CREATE YOUR OWN →</button>
             </section>
         </main>
 
         <footer>
-            <div class="footer-rule"><span>NANOGLYPH / OPEN SOURCE</span><span>NO CLOUD SINCE 2025</span></div>
+            <div class="footer-rule"><span data-i18n="footer.openSource">NANOGLYPH / OPEN SOURCE</span><span data-i18n="footer.noCloud">NO CLOUD SINCE 2025</span></div>
             <div class="footer-links">
                 <a href="https://github.com/GHagui/NanoGlyph-Share" target="_blank" rel="noopener"
-                    class="footer-github"><img src="./icons/github.svg" alt="" class="footer-icon">SOURCE CODE ↗</a>
+                    class="footer-github"><img src="./icons/github.svg" alt="" class="footer-icon"><span data-i18n="footer.source">SOURCE CODE ↗</span></a>
                 <a href="https://ghagui.github.io/Gabriel_Hagui/" target="_blank" rel="noopener"
-                    class="footer-credit">BUILT BY GABRIEL HAGUI / RUST</a>
-                <button id="clear-cache-btn" class="footer-clear-btn">CLEAR LOCAL CACHE</button>
+                    class="footer-credit" data-i18n="footer.credit">BUILT BY GABRIEL HAGUI / RUST</a>
+                <button id="clear-cache-btn" class="footer-clear-btn" data-i18n="footer.clear">CLEAR LOCAL CACHE</button>
             </div>
         </footer>
     </div>
@@ -315,22 +300,23 @@
         <div class="mobile-editor-shell">
             <header class="mobile-editor-topbar">
                 <div class="mobile-editor-heading">
-                    <span>NANOGLYPH / MOBILE WORKFLOW</span>
-                    <strong id="mobile-editor-title">BUILD A GLYPH</strong>
+                    <span data-i18n="mobile.workflow">NANOGLYPH / MOBILE WORKFLOW</span>
+                    <strong id="mobile-editor-title" data-i18n="encoder.title">BUILD A GLYPH</strong>
                 </div>
                 <div class="mobile-editor-header-actions">
+                    <label class="language-picker mobile-language-picker"><span class="sr-only" data-i18n="language.label">Language</span><select data-locale-select aria-label="Language" data-i18n-aria-label="language.label"><option value="en">English</option><option value="pt-BR">Português (Brasil)</option></select></label>
                     <button type="button" id="mobile-editor-info" class="mobile-editor-info"
-                        aria-label="Open NanoGlyph introduction">INFO</button>
-                    <button type="button" id="mobile-editor-new" class="mobile-editor-done hidden">NEW ↺</button>
+                        aria-label="Open NanoGlyph introduction" data-i18n="header.info" data-i18n-aria-label="header.infoAria">INFO</button>
+                    <button type="button" id="mobile-editor-new" class="mobile-editor-done hidden" data-i18n="mobile.new">NEW ↺</button>
                 </div>
             </header>
 
             <div id="mobile-preview-slot" class="mobile-preview-slot"></div>
 
-            <section class="mobile-adjustment-dock" aria-label="Image adjustment controls">
+            <section class="mobile-adjustment-dock" aria-label="Image adjustment controls" data-i18n-aria-label="mobile.controlsAria">
                 <div class="mobile-adjustment-meta">
                     <div>
-                        <span id="mobile-adjustment-counter">STEP 01 / 12</span>
+                        <span id="mobile-adjustment-counter">STEP 01 / 11</span>
                         <h2 id="mobile-adjustment-title">IMAGE INPUT</h2>
                     </div>
                     <output id="mobile-adjustment-value" aria-live="polite">SELECT</output>
@@ -339,14 +325,14 @@
                 <div id="mobile-page-slot" class="mobile-adjustments-slot"></div>
                 <p id="mobile-input-status" class="mobile-input-status" role="status" aria-live="polite"></p>
                 <div id="mobile-adjustment-presets" class="mobile-adjustment-presets"
-                    aria-label="Quick presets"></div>
+                    aria-label="Quick presets" data-i18n-aria-label="mobile.quickPresetsAria"></div>
 
                 <div class="mobile-adjustment-actions">
                     <button type="button" id="mobile-adjustment-prev" class="mobile-editor-arrow"
-                        aria-label="Previous step">←</button>
-                    <button type="button" id="mobile-page-reset" class="mobile-editor-reset">RESET PAGE</button>
+                        aria-label="Previous step" data-i18n-aria-label="mobile.previousAria">←</button>
+                    <button type="button" id="mobile-page-reset" class="mobile-editor-reset" data-i18n="mobile.resetPage">RESET PAGE</button>
                     <button type="button" id="mobile-adjustment-next" class="mobile-editor-arrow"
-                        aria-label="Next step">→</button>
+                        aria-label="Next step" data-i18n-aria-label="mobile.nextAria">→</button>
                 </div>
             </section>
 
@@ -357,7 +343,7 @@
         <div class="onboarding-shell">
             <header class="onboarding-topbar">
                 <span id="onboarding-counter">01 / 05</span>
-                <button type="button" id="onboarding-skip">SKIP TUTORIAL ×</button>
+                <button type="button" id="onboarding-skip" data-i18n="onboarding.skip">SKIP TUTORIAL ×</button>
             </header>
 
             <div class="onboarding-body">
@@ -379,8 +365,8 @@
             </div>
 
             <footer class="onboarding-actions">
-                <button type="button" id="onboarding-prev" aria-label="Previous introduction screen">←</button>
-                <button type="button" id="onboarding-next">NEXT STEP →</button>
+                <button type="button" id="onboarding-prev" aria-label="Previous introduction screen" data-i18n-aria-label="onboarding.previousAria">←</button>
+                <button type="button" id="onboarding-next" data-i18n="onboarding.next">NEXT STEP →</button>
             </footer>
         </div>
     </dialog>
@@ -389,9 +375,10 @@
         <div class="mobile-editor-shell mobile-received-shell">
             <header class="mobile-editor-topbar">
                 <div>
-                    <span>NANOGLYPH / INCOMING SIGNAL</span>
-                    <strong id="mobile-received-title">PIXELS RECEIVED</strong>
+                    <span data-i18n="mobile.incoming">NANOGLYPH / INCOMING SIGNAL</span>
+                    <strong id="mobile-received-title" data-i18n="decoder.title">PIXELS RECEIVED</strong>
                 </div>
+                <label class="language-picker mobile-language-picker"><span class="sr-only" data-i18n="language.label">Language</span><select data-locale-select aria-label="Language" data-i18n-aria-label="language.label"><option value="en">English</option><option value="pt-BR">Português (Brasil)</option></select></label>
             </header>
             <div id="mobile-received-slot" class="mobile-received-slot"></div>
         </div>

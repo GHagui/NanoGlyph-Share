@@ -6,6 +6,7 @@ const ASSETS = [
     './app.js',
     './wasm-worker.js',
     './manifest.json',
+    './manifest.pt-BR.json',
     './icons/icon-192.png',
     './icons/icon-512.png',
     './icons/whatsapp.svg',

@@ -8,12 +8,14 @@
   "scripts": {
     "build": "npm run build:web",
     "build:web": "node scripts/build-web.mjs",
+    "dev": "node scripts/dev-server.mjs",
     "cap:sync": "npm run build:web && npx cap sync android",
     "android:debug": "npm run cap:sync && cd android && ./gradlew assembleDebug",
     "android:release": "npm run cap:sync && cd android && ./gradlew assembleRelease bundleRelease",
     "test:rust": "cargo test --manifest-path nanoglyph_core/Cargo.toml",
     "test:web": "node --test tests/*.test.js",
-    "test": "npm run test:rust && npm run test:web && npm run build:web"
+    "test:build": "node --test tests/*.build.js",
+    "test": "npm run test:rust && npm run test:web && npm run build:web && npm run test:build"
   },
   "dependencies": {
     "@capacitor/android": "^8.0.0",

@@ -11,6 +11,14 @@ import {
     parseChunkMetadata,
     splitPayloadIntoChunks,
 } from './share-chunks.js';
+import {
+    initializeI18n,
+    onLocaleChange,
+    t,
+    translateDocument,
+} from './i18n.js';
+
+initializeI18n();
 
 const engine = new NanoGlyphEngine();
 
@@ -65,7 +73,7 @@ function saveCanvasAsUpscaledPng(sourceCanvas, filename, successCallback) {
             if (successCallback) successCallback();
         } catch (error) {
             console.error('PNG save failed:', error);
-            alert(`Could not save the PNG: ${error.message || error}`);
+            alert(t('error.savePng'));
         }
     }, 'image/png');
 }
@@ -85,8 +93,6 @@ const previewFrame = document.querySelector('.preview-frame');
 const encodeBtn = document.getElementById('encode-btn');
 const settingsContainer = document.getElementById('settings-container');
 const qualitySelect = document.getElementById('quality-select');
-const compressionContainer = document.getElementById('compression-container');
-const compressionSelect = document.getElementById('compression-select');
 const transformContainer = document.getElementById('transform-container');
 const transformLeftBtn = document.getElementById('transform-left');
 const transformRightBtn = document.getElementById('transform-right');
@@ -151,6 +157,29 @@ const mobileReceivedSlot = document.getElementById('mobile-received-slot');
 const decoderHomeMarker = document.createComment('nanoglyph-decoder-home');
 decoderView.before(decoderHomeMarker);
 
+let decoderStatusState = { key: 'decoder.decodingSignal', params: {} };
+let mobileInputStatusState = null;
+
+function setDecoderStatus(key, params = {}) {
+    decoderStatusState = { key, params };
+    decoderStatus.textContent = t(key, params);
+}
+
+function setMobileInputStatus(key = null, params = {}) {
+    mobileInputStatusState = key ? { key, params } : null;
+    mobileInputStatus.textContent = key ? t(key, params) : '';
+}
+
+function refreshPaletteLabel() {
+    if (paletteAutoMode) {
+        paletteModeLabel.textContent = selectedFileBuffer
+            ? t('palette.match', { id: lastAutoPaletteId })
+            : t('palette.bestMatch');
+    } else {
+        paletteModeLabel.textContent = t('palette.manualStatus', { id: currentPaletteId });
+    }
+}
+
 let selectedFileBuffer = null;
 let imageGeneration = 0;
 let currentPreviewObjectUrl = null;
@@ -181,18 +210,18 @@ const ONBOARDING_ART = {
         <span class="art-photo-arrow">→</span>
         <div class="art-link-bar"><strong>HTTPS</strong><span></span></div>`,
     choose: `
-        <div class="art-drop-target"><span>DROP HERE</span><b>＋</b></div>
+        <div class="art-drop-target"><span data-i18n="onboarding.art.drop">DROP HERE</span><b>＋</b></div>
         <div class="art-file-card"><i></i><strong>IMG</strong><small>.JPG</small></div>
         <span class="art-cursor">↖</span>`,
     create: `
         <span class="art-create-track"></span>
         <div class="art-create-source"><i></i><i></i><i></i><i></i></div>
         <div class="art-create-core"><i></i><i></i><i></i></div>
-        <div class="art-create-result"><strong>LINK</strong><span>↗</span></div>
+        <div class="art-create-result"><strong data-i18n="onboarding.art.link">LINK</strong><span>↗</span></div>
         <div class="art-create-progress"><span></span></div>`,
     share: `
         <div class="art-chat-window">
-            <div class="art-chat-header"><i></i><strong>CHAT</strong></div>
+            <div class="art-chat-header"><i></i><strong data-i18n="onboarding.art.chat">CHAT</strong></div>
             <div class="art-message art-message-one"><b>1 / 3</b><span></span></div>
             <div class="art-message art-message-two"><b>2 / 3</b><span></span></div>
             <div class="art-message art-message-three"><b>3 / 3</b><span></span></div>
@@ -205,45 +234,30 @@ const ONBOARDING_ART = {
             <span class="art-piece art-piece-three">3</span>
             <span class="art-piece art-piece-four">✓</span>
         </div>
-        <strong class="art-complete">PHOTO COMPLETE</strong>`,
+        <strong class="art-complete" data-i18n="onboarding.art.complete">PHOTO COMPLETE</strong>`,
 };
 const ONBOARDING_SLIDES = [
     {
         art: 'photo-link',
-        eyebrow: '01 / WHAT THIS APP DOES',
-        title: 'PHOTO AS A LINK.',
-        copy: 'NanoGlyph puts a small version of your photo inside a web link. Send that link in any chat instead of uploading the photo.',
-        hint: 'YOUR ORIGINAL PHOTO NEVER LEAVES THIS DEVICE.',
+        prefix: 'onboarding.1',
     },
     {
         art: 'choose',
-        eyebrow: '02 / CHOOSE',
-        title: 'CHOOSE A PHOTO.',
-        mobileCopy: 'Tap SELECT FILE and choose a photo. Check the preview, then use → to move through the options.',
-        desktopCopy: 'Click SELECT FILE or drag a photo into the box. Check the preview; changing the image settings is optional.',
-        hint: 'NOT SURE WHAT TO CHANGE? KEEP THE DEFAULT SETTINGS.',
+        prefix: 'onboarding.2',
+        contextual: true,
     },
     {
         art: 'create',
-        eyebrow: '03 / CREATE',
-        title: 'CREATE THE LINK.',
-        mobileCopy: 'Keep using → until the last screen, then tap ENCODE MAGIC LINK. Wait for the sharing buttons to appear.',
-        desktopCopy: 'After choosing a photo, scroll to the bottom and click ENCODE MAGIC LINK. Wait for the sharing buttons to appear.',
-        hint: 'KEEP THIS PAGE OPEN UNTIL THE LINK IS READY.',
+        prefix: 'onboarding.3',
+        contextual: true,
     },
     {
         art: 'share',
-        eyebrow: '04 / SHARE',
-        title: 'SEND EVERY PART.',
-        copy: 'Use SHARE LINK or COPY LINK. If buttons named Part 1, Part 2 and more appear, send every part to the same person.',
-        hint: 'IF ONE PART IS MISSING, THE PHOTO CANNOT OPEN.',
+        prefix: 'onboarding.4',
     },
     {
         art: 'receive',
-        eyebrow: '05 / RECEIVE',
-        title: 'OPEN THE PHOTO.',
-        copy: 'Open the link. If there are several parts, open every part on the same phone or computer. Do not switch between Chrome, Safari or another browser. The photo appears after the last part.',
-        hint: 'NO APP OR ACCOUNT IS NEEDED. YOU CAN THEN SAVE THE PHOTO.',
+        prefix: 'onboarding.5',
     },
 ];
 let activeOnboardingSlide = 0;
@@ -252,24 +266,24 @@ let onboardingTrigger = null;
 
 const MOBILE_ADJUSTMENTS = [
     {
-        key: 'exposure', label: 'EXPOSURE', slider: adjExposure,
-        presets: [['DARK', -35], ['SOFT', -15], ['BRIGHT', 35]],
+        key: 'exposure', labelKey: 'adjustments.exposure', slider: adjExposure,
+        presets: [['preset.dark', -35], ['preset.soft', -15], ['preset.bright', 35]],
     },
     {
-        key: 'contrast', label: 'CONTRAST', slider: adjContrast,
-        presets: [['SOFT', -30], ['CRISP', 20], ['HARD', 45]],
+        key: 'contrast', labelKey: 'adjustments.contrast', slider: adjContrast,
+        presets: [['preset.soft', -30], ['preset.crisp', 20], ['preset.hard', 45]],
     },
     {
-        key: 'saturation', label: 'SATURATION', slider: adjSaturation,
-        presets: [['MONO', -100], ['MUTED', -35], ['VIVID', 45]],
+        key: 'saturation', labelKey: 'adjustments.saturation', slider: adjSaturation,
+        presets: [['preset.mono', -100], ['preset.muted', -35], ['preset.vivid', 45]],
     },
     {
-        key: 'hue', label: 'HUE ROTATE', slider: adjHue,
-        presets: [['LEFT', -90], ['FLIP', 180], ['RIGHT', 90]],
+        key: 'hue', labelKey: 'adjustments.hue', slider: adjHue,
+        presets: [['preset.left', -90], ['preset.flip', 180], ['preset.right', 90]],
     },
     {
-        key: 'temperature', label: 'TEMPERATURE', slider: adjTemperature,
-        presets: [['COOL', -40], ['DAYLIGHT', 10], ['WARM', 40]],
+        key: 'temperature', labelKey: 'adjustments.temperature', slider: adjTemperature,
+        presets: [['preset.cool', -40], ['preset.daylight', 10], ['preset.warm', 40]],
     },
 ];
 
@@ -278,20 +292,19 @@ MOBILE_ADJUSTMENTS.forEach(adjustment => {
 });
 
 const MOBILE_PAGES = [
-    { key: 'input', label: 'IMAGE INPUT', value: () => selectedFileBuffer ? 'READY' : 'SELECT' },
-    { key: 'scale', label: 'OUTPUT SCALE', nodes: [settingsContainer], value: () => `${qualitySelect.value} PX` },
-    { key: 'palette', label: 'COLOR MATRIX', nodes: [paletteContainer], value: () => paletteAutoMode ? 'AUTO' : `#${currentPaletteId}` },
-    { key: 'transform', label: 'TRANSFORM IMAGE', nodes: [transformContainer], value: () => `${rotationQuarterTurns * 90}°` },
+    { key: 'input', labelKey: 'mobile.input', value: () => t(selectedFileBuffer ? 'mobile.ready' : 'mobile.select') },
+    { key: 'scale', labelKey: 'mobile.scale', nodes: [settingsContainer], value: () => `${qualitySelect.value} PX` },
+    { key: 'palette', labelKey: 'mobile.palette', nodes: [paletteContainer], value: () => paletteAutoMode ? t('palette.auto') : `#${currentPaletteId}` },
+    { key: 'transform', labelKey: 'mobile.transform', nodes: [transformContainer], value: () => `${rotationQuarterTurns * 90}°` },
     ...MOBILE_ADJUSTMENTS.map(adjustment => ({
         key: adjustment.key,
-        label: adjustment.label,
+        labelKey: adjustment.labelKey,
         nodes: [adjustmentsContainer],
         adjustment,
         value: () => formatAdjustmentValue(adjustment),
     })),
-    { key: 'compression', label: 'COMPRESSION', nodes: [compressionContainer], value: () => compressionSelect.value.toUpperCase() },
-    { key: 'route', label: 'TRANSMISSION ROUTE', nodes: [platformContainer], value: () => getSelectedPlatformName().toUpperCase() },
-    { key: 'export', label: 'EXPORT GLYPH', nodes: [actionBlock, resultContainer], value: () => resultContainer.classList.contains('hidden') ? 'READY' : 'DONE' },
+    { key: 'route', labelKey: 'mobile.route', nodes: [platformContainer], value: () => getSelectedPlatformName().toUpperCase() },
+    { key: 'export', labelKey: 'mobile.export', nodes: [actionBlock, resultContainer], value: () => t(resultContainer.classList.contains('hidden') ? 'mobile.ready' : 'mobile.done') },
 ];
 
 const MOVABLE_MOBILE_NODES = [
@@ -301,7 +314,6 @@ const MOVABLE_MOBILE_NODES = [
     paletteContainer,
     transformContainer,
     adjustmentsContainer,
-    compressionContainer,
     platformContainer,
     actionBlock,
     resultContainer,
@@ -356,12 +368,13 @@ function setAdjustmentValue(adjustment, value) {
 
 function renderMobilePresets(adjustment) {
     mobileAdjustmentPresets.innerHTML = '';
-    [...adjustment.presets, ['RESET', 0]].forEach(([label, value]) => {
+    [...adjustment.presets, ['preset.reset', 0]].forEach(([labelKey, value]) => {
         const button = document.createElement('button');
         button.type = 'button';
         button.className = 'mobile-preset';
         button.dataset.value = String(value);
-        button.textContent = label;
+        button.textContent = t(labelKey);
+        button.dataset.i18nKey = labelKey;
         button.setAttribute('aria-pressed', 'false');
         button.addEventListener('click', () => setAdjustmentValue(adjustment, value));
         mobileAdjustmentPresets.appendChild(button);
@@ -404,18 +417,21 @@ function completeOnboarding() {
 
 function renderOnboarding() {
     const slide = ONBOARDING_SLIDES[activeOnboardingSlide];
-    const contextualCopy = mobileEditorMedia.matches ? slide.mobileCopy : slide.desktopCopy;
     onboardingCounter.textContent = `${String(activeOnboardingSlide + 1).padStart(2, '0')} / ${String(ONBOARDING_SLIDES.length).padStart(2, '0')}`;
     onboardingArt.dataset.slide = slide.art;
     onboardingArt.innerHTML = ONBOARDING_ART[slide.art];
-    onboardingEyebrow.textContent = slide.eyebrow;
-    onboardingTitle.textContent = slide.title;
-    onboardingCopy.textContent = contextualCopy || slide.copy;
-    onboardingHint.textContent = slide.hint;
+    translateDocument(onboardingArt);
+    onboardingEyebrow.textContent = t(`${slide.prefix}.eyebrow`);
+    onboardingTitle.textContent = t(`${slide.prefix}.title`);
+    const copySuffix = slide.contextual
+        ? (mobileEditorMedia.matches ? 'mobileCopy' : 'desktopCopy')
+        : 'copy';
+    onboardingCopy.textContent = t(`${slide.prefix}.${copySuffix}`);
+    onboardingHint.textContent = t(`${slide.prefix}.hint`);
     onboardingPrev.disabled = activeOnboardingSlide === 0;
     onboardingNext.textContent = activeOnboardingSlide === ONBOARDING_SLIDES.length - 1
-        ? 'START USING →'
-        : 'NEXT STEP →';
+        ? t('onboarding.start')
+        : t('onboarding.next');
 }
 
 function hideOnboarding(markComplete = false, restoreFocus = true) {
@@ -485,8 +501,11 @@ function showMobilePage(index, focusControl = false) {
     mobileEditor.classList.toggle('mobile-input-page', page.key === 'input');
     mobileEditor.classList.toggle('mobile-no-image', !selectedFileBuffer);
     mobileEditor.classList.toggle('mobile-export-page', page.key === 'export');
-    mobileAdjustmentCounter.textContent = `STEP ${String(activeMobilePage + 1).padStart(2, '0')} / ${MOBILE_PAGES.length}`;
-    mobileAdjustmentTitle.textContent = page.label;
+    mobileAdjustmentCounter.textContent = t('mobile.step', {
+        current: String(activeMobilePage + 1).padStart(2, '0'),
+        total: MOBILE_PAGES.length,
+    });
+    mobileAdjustmentTitle.textContent = t(page.labelKey);
     mobileAdjustmentPrev.disabled = activeMobilePage === 0;
     mobileAdjustmentNext.disabled = !selectedFileBuffer || activeMobilePage === MOBILE_PAGES.length - 1;
     mobilePageReset.classList.toggle('hidden', page.key === 'input' || page.key === 'export');
@@ -504,9 +523,9 @@ function showMobilePage(index, focusControl = false) {
 function restoreMobileEditorNodes() {
     MOVABLE_MOBILE_NODES.forEach(restoreMobileNode);
     document.body.classList.remove('mobile-editor-open');
-    adjustmentsToggle.setAttribute('aria-expanded', 'false');
-    adjustmentsBody.setAttribute('aria-hidden', 'true');
-    adjustmentsBody.classList.remove('open');
+    adjustmentsToggle.setAttribute('aria-expanded', 'true');
+    adjustmentsBody.setAttribute('aria-hidden', 'false');
+    adjustmentsBody.classList.add('open');
     MOBILE_ADJUSTMENTS.forEach(item => {
         item.row.classList.remove('mobile-active');
         item.row.removeAttribute('aria-hidden');
@@ -588,7 +607,7 @@ function syncAdjustmentUI() {
     [adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(updateSliderTrack);
 
     const active = hasAdjustments(adj);
-    adjustmentsBadge.textContent = active ? 'MODIFIED' : 'DEFAULT';
+    adjustmentsBadge.textContent = t(active ? 'adjustments.modified' : 'adjustments.default');
     adjustmentsBadge.classList.toggle('active', active);
     syncMobilePresetState();
     syncMobilePageValue();
@@ -606,7 +625,8 @@ function getAdjFloats() {
     ];
 }
 
-// Expand / collapse
+// The adjustment panel stays expanded; on mobile its header opens the first
+// adjustment page instead of collapsing the controls.
 adjustmentsToggle.addEventListener('click', () => {
     if (mobileEditorMedia.matches && !previewContainer.classList.contains('hidden')) {
         openMobileEditor(4);
@@ -614,10 +634,9 @@ adjustmentsToggle.addEventListener('click', () => {
         return;
     }
 
-    const expanded = adjustmentsToggle.getAttribute('aria-expanded') === 'true';
-    adjustmentsToggle.setAttribute('aria-expanded', String(!expanded));
-    adjustmentsBody.setAttribute('aria-hidden', String(expanded));
-    adjustmentsBody.classList.toggle('open', !expanded);
+    adjustmentsToggle.setAttribute('aria-expanded', 'true');
+    adjustmentsBody.setAttribute('aria-hidden', 'false');
+    adjustmentsBody.classList.add('open');
 });
 
 // Individual slider live update
@@ -663,9 +682,9 @@ document.getElementById('adj-reset-all').addEventListener('click', resetAllAdjus
 
 function syncTransformUI() {
     const parts = [`${rotationQuarterTurns * 90}°`];
-    if (flipHorizontal) parts.push('FLIP H');
-    if (flipVertical) parts.push('FLIP V');
-    if (parts.length === 1 && rotationQuarterTurns === 0) parts.push('ORIGINAL');
+    if (flipHorizontal) parts.push(t('transform.flipH'));
+    if (flipVertical) parts.push(t('transform.flipV'));
+    if (parts.length === 1 && rotationQuarterTurns === 0) parts.push(t('transform.original'));
     transformStatus.textContent = parts.join(' / ');
     transformFlipHorizontalBtn.classList.toggle('active', flipHorizontal);
     transformFlipVerticalBtn.classList.toggle('active', flipVertical);
@@ -721,8 +740,6 @@ function resetCurrentMobilePage() {
         paletteBtnAuto.click();
     } else if (page.key === 'transform') {
         resetTransform();
-    } else if (page.key === 'compression') {
-        compressionSelect.value = 'adaptive';
     } else if (page.key === 'route') {
         platformGrid.querySelector('[data-platform="whatsapp"]')?.click();
     }
@@ -824,10 +841,10 @@ async function renderPalettePreview(paletteId) {
         const h = preview.height;
         const actualPaletteId = preview.paletteId;
         lastAutoPaletteId = actualPaletteId;
-        
+
         if (paletteAutoMode) {
              await renderPaletteSwatches(actualPaletteId);
-             paletteModeLabel.textContent = `Auto — Match #${actualPaletteId}`;
+             paletteModeLabel.textContent = t('palette.match', { id: actualPaletteId });
         }
         syncMobilePageValue();
 
@@ -856,19 +873,19 @@ async function renderPalettePreview(paletteId) {
 
 function updatePaletteUI() {
     const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
-    
+
     if (paletteAutoMode) {
         paletteBtnAuto.classList.add('active');
         paletteBtnManual.classList.remove('active');
         paletteBtnAuto.setAttribute('aria-pressed', 'true');
         paletteBtnManual.setAttribute('aria-pressed', 'false');
-        paletteModeLabel.textContent = 'Auto / best match';
+        refreshPaletteLabel();
     } else {
         paletteBtnAuto.classList.remove('active');
         paletteBtnManual.classList.add('active');
         paletteBtnAuto.setAttribute('aria-pressed', 'false');
         paletteBtnManual.setAttribute('aria-pressed', 'true');
-        paletteModeLabel.textContent = `Manual — ${currentPaletteId}/98`;
+        paletteModeLabel.textContent = t('palette.manualStatus', { id: currentPaletteId });
     }
     // Always render dithered preview when image is loaded
     if (selectedFileBuffer && wasmInitialized) {
@@ -939,14 +956,16 @@ qualitySelect.addEventListener('change', () => {
     syncMobilePageValue();
 });
 
-compressionSelect.addEventListener('change', syncMobilePageValue);
-
 // Save the dithered preview canvas as PNG (without sharing)
 savePreviewBtn.addEventListener('click', () => {
     const previewCanvas = document.getElementById('palette-preview-canvas');
     saveCanvasAsUpscaledPng(previewCanvas, 'nanoglyph-preview.png', () => {
-        savePreviewBtn.textContent = 'SAVED ✓';
-        setTimeout(() => { savePreviewBtn.textContent = 'SAVE PIXEL PNG ↓'; }, 2000);
+        savePreviewBtn.dataset.temporaryState = 'saved';
+        savePreviewBtn.textContent = t('action.saved');
+        setTimeout(() => {
+            delete savePreviewBtn.dataset.temporaryState;
+            savePreviewBtn.textContent = t('action.savePng');
+        }, 2000);
     });
 });
 
@@ -993,7 +1012,7 @@ function checkHash() {
         if (mobileEditorMedia.matches) openMobileReceivedView();
 
         if (!wasmInitialized) {
-            decoderStatus.textContent = "Loading decoder...";
+            setDecoderStatus('decoder.loading');
             return;
         }
 
@@ -1007,7 +1026,7 @@ function checkHash() {
                     const chunkData = withoutLeadingSlash.substring(slashIdx + 1);
                     const parsed = parseChunkMetadata(meta[0], meta[1], chunkData);
                     if (!parsed) {
-                        decoderStatus.textContent = "Invalid link format.";
+                        setDecoderStatus('decoder.invalidLink');
                         return;
                     }
                     const { index, total } = parsed;
@@ -1016,7 +1035,7 @@ function checkHash() {
                         localStorage.setItem(`ng_chunk_${index}_${total}`, chunkData);
                     } catch (error) {
                         console.warn('Could not store NanoGlyph chunk:', error);
-                        decoderStatus.textContent = "Could not store this part on the device.";
+                        setDecoderStatus('decoder.storeFailed');
                         return;
                     }
 
@@ -1027,7 +1046,7 @@ function checkHash() {
                     );
 
                     if (collected.status === 'missing') {
-                        decoderStatus.textContent = `Received part ${index} of ${total}. Waiting for other parts...`;
+                        setDecoderStatus('decoder.waiting', { index, total });
                         decodedCanvas.classList.add('hidden');
                         return;
                     }
@@ -1036,11 +1055,11 @@ function checkHash() {
                         localStorage.removeItem(`ng_chunk_${i}_${total}`);
                     }
                     if (collected.status === 'oversized') {
-                        decoderStatus.textContent = "Invalid or oversized NanoGlyph payload.";
+                        setDecoderStatus('decoder.invalidPayload');
                         return;
                     }
 
-                    decoderStatus.textContent = "All parts received! Decoding...";
+                    setDecoderStatus('decoder.allReceived');
                     decodeAndRender(collected.payload);
                     return;
                 }
@@ -1049,10 +1068,10 @@ function checkHash() {
 
         // Single payload
         if (hash.length > MAX_NANOGLYPH_PAYLOAD_LENGTH || !/^[0-9A-Za-z]+$/.test(hash)) {
-            decoderStatus.textContent = "Invalid or oversized NanoGlyph payload.";
+            setDecoderStatus('decoder.invalidPayload');
             return;
         }
-        decoderStatus.textContent = "Decoding...";
+        setDecoderStatus('decoder.decoding');
         decodeAndRender(hash);
     } else {
         encoderView.classList.remove('hidden');
@@ -1073,7 +1092,7 @@ async function decodeAndRender(base62Str) {
         const frameCount = decoded.frameCount;
 
         if (!width || !height || width === 0 || height === 0) {
-            decoderStatus.textContent = "Invalid image data (zero dimensions).";
+            setDecoderStatus('decoder.zeroDimensions');
             decoderStatus.classList.remove('hidden');
             return;
         }
@@ -1109,7 +1128,7 @@ async function decodeAndRender(base62Str) {
         savePngBtn.classList.remove('hidden');
     } catch (e) {
         console.error("Failed to decode:", e);
-        decoderStatus.textContent = "Failed to decode image: " + e;
+        setDecoderStatus('decoder.failed');
         decoderStatus.classList.remove('hidden');
     }
 }
@@ -1117,8 +1136,12 @@ async function decodeAndRender(base62Str) {
 // Save decoded image as PNG
 savePngBtn.addEventListener('click', () => {
     saveCanvasAsUpscaledPng(decodedCanvas, 'nanoglyph-image.png', () => {
-        savePngBtn.textContent = 'SAVED ✓';
-        setTimeout(() => { savePngBtn.textContent = 'SAVE PIXEL PNG ↓'; }, 2000);
+        savePngBtn.dataset.temporaryState = 'saved';
+        savePngBtn.textContent = t('action.saved');
+        setTimeout(() => {
+            delete savePngBtn.dataset.temporaryState;
+            savePngBtn.textContent = t('action.savePng');
+        }, 2000);
     });
 });
 
@@ -1167,7 +1190,7 @@ function clearCurrentImage() {
     imagePreview.style.display = 'none';
     document.getElementById('palette-preview-canvas')?.style.setProperty('display', 'none');
     previewContainer.classList.add('hidden');
-    [settingsContainer, paletteContainer, transformContainer, adjustmentsContainer, compressionContainer, platformContainer]
+    [settingsContainer, paletteContainer, transformContainer, adjustmentsContainer, platformContainer]
         .forEach(node => node.classList.add('hidden'));
     savePreviewBtn.classList.add('hidden');
     encodeBtn.disabled = true;
@@ -1180,10 +1203,12 @@ function setEncodingUi(isEncoding) {
 
     if (isEncoding) {
         encodeBtn.setAttribute('aria-busy', 'true');
-        encodeBtn.innerHTML = '<span class="btn-label">ENCODING PIXELS</span><span aria-hidden="true">•••</span>';
+        encodeBtn.querySelector('.btn-label').textContent = t('action.encoding');
+        encodeBtn.lastElementChild.textContent = '•••';
     } else {
         encodeBtn.removeAttribute('aria-busy');
-        encodeBtn.innerHTML = '<span class="btn-label">ENCODE MAGIC LINK</span><span aria-hidden="true">→</span>';
+        encodeBtn.querySelector('.btn-label').textContent = t('action.encode');
+        encodeBtn.lastElementChild.textContent = '→';
     }
 }
 
@@ -1195,7 +1220,6 @@ function resetEditorOptions() {
     lastAutoPaletteId = 0;
     resetAllAdjustments();
     resetTransform();
-    compressionSelect.value = 'adaptive';
     selectedPlatformLimit = 4096;
     platformGrid.querySelectorAll('.platform-btn').forEach(button => {
         const selected = button.dataset.platform === 'whatsapp';
@@ -1218,7 +1242,7 @@ function resetProject() {
     resultContainer.classList.add('hidden');
     dropZone.classList.remove('hidden');
     fileInput.value = '';
-    mobileInputStatus.textContent = '';
+    setMobileInputStatus();
     activeMobilePage = 0;
     if (mobileEditor.open) showMobilePage(0, true);
 }
@@ -1268,13 +1292,13 @@ async function convertHeifToJpeg(file) {
 
 async function handleFile(file) {
     if (!file.type.startsWith('image/') && !isHeifFormat(file)) {
-        mobileInputStatus.textContent = 'UNSUPPORTED FILE / SELECT AN IMAGE';
-        if (!mobileEditorMedia.matches) alert('Please select an image file.');
+        setMobileInputStatus('status.unsupported');
+        if (!mobileEditorMedia.matches) alert(t('error.selectImage'));
         return;
     }
     if (file.size > 32 * 1024 * 1024) {
-        mobileInputStatus.textContent = 'IMAGE EXCEEDS THE 32 MIB INPUT LIMIT';
-        if (!mobileEditorMedia.matches) alert('Please select an image smaller than 32 MiB.');
+        setMobileInputStatus('status.tooLarge');
+        if (!mobileEditorMedia.matches) alert(t('error.imageTooLarge'));
         return;
     }
 
@@ -1283,7 +1307,7 @@ async function handleFile(file) {
     resetEditorOptions();
     encodeBtn.disabled = true;
     resultContainer.classList.add('hidden');
-    mobileInputStatus.textContent = needsConversion ? 'CONVERTING HEIF → JPG…' : 'READING IMAGE…';
+    setMobileInputStatus(needsConversion ? 'status.converting' : 'status.reading');
     mobileInputStatus.classList.remove('hidden');
     if (mobileEditor.open) showMobilePage(0);
 
@@ -1302,7 +1326,6 @@ async function handleFile(file) {
         if (previousPreview) previousPreview.style.display = 'none';
         previewContainer.classList.remove('hidden');
         settingsContainer.classList.remove('hidden');
-        compressionContainer.classList.remove('hidden');
         transformContainer.classList.remove('hidden');
         adjustmentsContainer.classList.remove('hidden');
         platformContainer.classList.remove('hidden');
@@ -1311,7 +1334,10 @@ async function handleFile(file) {
         savePreviewBtn.classList.remove('hidden');
         syncAdjustmentUI();
         syncTransformUI();
-        mobileInputStatus.textContent = needsConversion ? 'HEIF CONVERTED TO JPG ✓' : `${file.name || 'IMAGE'} READY`;
+        setMobileInputStatus(
+            needsConversion ? 'status.converted' : 'status.fileReady',
+            needsConversion ? {} : { filename: file.name || t('hero.title') },
+        );
         if (wasmInitialized) {
             updatePaletteUI();
         }
@@ -1323,13 +1349,11 @@ async function handleFile(file) {
     } catch (error) {
         console.error('Image preparation failed:', error);
         clearCurrentImage();
-        const detail = needsConversion
-            ? 'HEIF CONVERSION FAILED / TRY ANOTHER FILE'
-            : 'IMAGE COULD NOT BE DECODED';
-        mobileInputStatus.textContent = detail;
+        const detailKey = needsConversion ? 'status.conversionFailed' : 'status.decodeFailed';
+        setMobileInputStatus(detailKey);
         dropZone.classList.remove('hidden');
         if (mobileEditor.open) showMobilePage(0);
-        if (!mobileEditorMedia.matches) alert(`${detail}. ${error.message || error}`);
+        if (!mobileEditorMedia.matches) alert(t(detailKey));
     } finally {
         fileInput.value = '';
     }
@@ -1358,9 +1382,6 @@ encodeBtn.addEventListener('click', async () => {
         if (!encodingIsCurrent()) return;
 
         const maxDimension = parseInt(qualitySelect.value, 10);
-        const compressionModes = { zlib: 0, adaptive: 1, maximum: 2 };
-        const compressionMode = compressionModes[compressionSelect.value] ?? 1;
-
         // Get adjustment values (floats)
         const [exp, con, sat, hue, tmp] = getAdjFloats();
 
@@ -1368,7 +1389,6 @@ encodeBtn.addEventListener('click', async () => {
         const encoded = await engine.encode({
             maxDimension,
             paletteId: paletteAutoMode ? null : currentPaletteId,
-            compressionMode,
             exposure: exp,
             contrast: con,
             saturation: sat,
@@ -1414,7 +1434,9 @@ encodeBtn.addEventListener('click', async () => {
             chunkButtons.innerHTML = '';
             const info = document.createElement('p');
             info.className = 'chunk-info';
-            info.textContent = `Split into ${total} parts for sharing:`;
+            info.dataset.i18nKey = 'result.parts';
+            info.dataset.i18nTotal = String(total);
+            info.textContent = t('result.parts', { total });
             chunkButtons.appendChild(info);
 
             const list = document.createElement('div');
@@ -1428,18 +1450,24 @@ encodeBtn.addEventListener('click', async () => {
 
                 const shareChunkBtn = document.createElement('button');
                 shareChunkBtn.className = 'btn secondary';
-                shareChunkBtn.textContent = `Share Part ${idx + 1}`;
+                shareChunkBtn.dataset.i18nKey = 'result.sharePart';
+                shareChunkBtn.dataset.i18nIndex = String(idx + 1);
+                shareChunkBtn.textContent = t('result.sharePart', { index: idx + 1 });
                 shareChunkBtn.addEventListener('click', async () => {
                     try {
-                        const shared = await shareUrl(chunkUrl);
+                        const shared = await shareUrl(chunkUrl, t('share.dialogTitle'));
                         if (shared) return;
                     } catch (error) {
                         console.log('Share canceled or failed', error);
                     }
                     {
                         copyToClipboard(chunkUrl).then(() => {
-                            shareChunkBtn.textContent = 'Copied!';
-                            setTimeout(() => { shareChunkBtn.textContent = `Share Part ${idx + 1}`; }, 1500);
+                            shareChunkBtn.dataset.temporaryState = 'copied';
+                            shareChunkBtn.textContent = t('result.copied');
+                            setTimeout(() => {
+                                delete shareChunkBtn.dataset.temporaryState;
+                                shareChunkBtn.textContent = t('result.sharePart', { index: idx + 1 });
+                            }, 1500);
                         });
                     }
                 });
@@ -1447,11 +1475,17 @@ encodeBtn.addEventListener('click', async () => {
 
                 const copyChunkBtn = document.createElement('button');
                 copyChunkBtn.className = 'btn outline';
-                copyChunkBtn.textContent = `Copy Part ${idx + 1}`;
+                copyChunkBtn.dataset.i18nKey = 'result.copyPart';
+                copyChunkBtn.dataset.i18nIndex = String(idx + 1);
+                copyChunkBtn.textContent = t('result.copyPart', { index: idx + 1 });
                 copyChunkBtn.addEventListener('click', () => {
                     copyToClipboard(chunkUrl).then(() => {
-                        copyChunkBtn.textContent = 'Copied!';
-                        setTimeout(() => { copyChunkBtn.textContent = `Copy Part ${idx + 1}`; }, 1500);
+                        copyChunkBtn.dataset.temporaryState = 'copied';
+                        copyChunkBtn.textContent = t('result.copied');
+                        setTimeout(() => {
+                            delete copyChunkBtn.dataset.temporaryState;
+                            copyChunkBtn.textContent = t('result.copyPart', { index: idx + 1 });
+                        }, 1500);
                     });
                 });
                 row.appendChild(copyChunkBtn);
@@ -1466,7 +1500,7 @@ encodeBtn.addEventListener('click', async () => {
     } catch (e) {
         if (encodingGeneration !== imageGeneration) return;
         console.error("Encoding error:", e);
-        alert(`Failed to encode image. ${e.message || e}`);
+        alert(t('error.encode'));
     } finally {
         if (encodingGeneration === imageGeneration) {
             setEncodingUi(false);
@@ -1499,7 +1533,7 @@ shareBtn.addEventListener('click', async () => {
         : urlBox.textContent;
 
     try {
-        const shared = await shareUrl(firstUrl);
+        const shared = await shareUrl(firstUrl, t('share.dialogTitle'));
         if (shared) return;
     } catch (e) {
         console.log('Share canceled or failed', e);
@@ -1508,11 +1542,15 @@ shareBtn.addEventListener('click', async () => {
     {
         // Fallback: copy URL to clipboard
         copyToClipboard(firstUrl).then(() => {
-            shareBtn.textContent = 'Link Copied!';
-            setTimeout(() => { shareBtn.textContent = 'Share Link'; }, 2000);
+            shareBtn.dataset.temporaryState = 'copied';
+            shareBtn.textContent = t('result.linkCopied');
+            setTimeout(() => {
+                delete shareBtn.dataset.temporaryState;
+                shareBtn.textContent = t('result.share');
+            }, 2000);
         }).catch(() => {
             // Last resort: prompt with the URL
-            prompt('Copy this link:', firstUrl);
+            prompt(t('prompt.copy'), firstUrl);
         });
     }
 });
@@ -1520,14 +1558,53 @@ shareBtn.addEventListener('click', async () => {
 copyBtn.addEventListener('click', () => {
     copyToClipboard(urlBox.textContent)
         .then(() => {
-            const originalText = copyBtn.textContent;
-            copyBtn.textContent = 'Copied!';
-            setTimeout(() => { copyBtn.textContent = originalText; }, 2000);
+            copyBtn.dataset.temporaryState = 'copied';
+            copyBtn.textContent = t('result.copied');
+            setTimeout(() => {
+                delete copyBtn.dataset.temporaryState;
+                copyBtn.textContent = t('result.copy');
+            }, 2000);
         })
         .catch(err => {
             console.error('Failed to copy text: ', err);
-            alert("Failed to copy link.");
+            alert(t('error.copy'));
         });
+});
+
+onLocaleChange(() => {
+    if (decoderStatusState) {
+        decoderStatus.textContent = t(decoderStatusState.key, decoderStatusState.params);
+    }
+    if (mobileInputStatusState) {
+        mobileInputStatus.textContent = t(mobileInputStatusState.key, mobileInputStatusState.params);
+    }
+    if (onboardingDialog.open) renderOnboarding();
+    if (mobileEditor.open) showMobilePage(activeMobilePage);
+
+    const adjustmentState = hasAdjustments(getAdjustments());
+    adjustmentsBadge.textContent = t(adjustmentState ? 'adjustments.modified' : 'adjustments.default');
+    syncTransformUI();
+    refreshPaletteLabel();
+
+    chunkButtons.querySelectorAll('[data-i18n-key]').forEach(element => {
+        if (element.dataset.temporaryState === 'copied') {
+            element.textContent = t('result.copied');
+            return;
+        }
+        const params = {};
+        if (element.dataset.i18nIndex) params.index = element.dataset.i18nIndex;
+        if (element.dataset.i18nTotal) params.total = element.dataset.i18nTotal;
+        element.textContent = t(element.dataset.i18nKey, params);
+    });
+
+    if (appRoot.classList.contains('is-encoding')) {
+        encodeBtn.querySelector('.btn-label').textContent = t('action.encoding');
+    }
+    if (shareBtn.dataset.temporaryState === 'copied') shareBtn.textContent = t('result.linkCopied');
+    if (copyBtn.dataset.temporaryState === 'copied') copyBtn.textContent = t('result.copied');
+    [savePreviewBtn, savePngBtn].forEach(button => {
+        if (button.dataset.temporaryState === 'saved') button.textContent = t('action.saved');
+    });
 });
 
 resetBtn.addEventListener('click', () => {
@@ -1537,7 +1614,7 @@ resetBtn.addEventListener('click', () => {
 
 // Clear cache & data
 document.getElementById('clear-cache-btn').addEventListener('click', async () => {
-    const confirmed = confirm('Clear all cached data and force a fresh reload?\n\nThis will remove the offline cache and any stored image chunks.');
+    const confirmed = confirm(t('confirm.clearCache'));
     if (!confirmed) return;
 
     try {
@@ -1560,7 +1637,7 @@ document.getElementById('clear-cache-btn').addEventListener('click', async () =>
         window.location.reload(true);
     } catch (e) {
         console.error('Clear cache failed:', e);
-        alert('Failed to clear cache: ' + e.message);
+        alert(t('error.clearCache'));
     }
 });
 

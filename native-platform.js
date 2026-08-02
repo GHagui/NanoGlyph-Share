@@ -39,9 +39,9 @@ export async function savePngBlob(blob, filename) {
   });
 }
 
-export async function shareUrl(url) {
+export async function shareUrl(url, dialogTitle = 'Share NanoGlyph link') {
   if (isNativePlatform) {
-    await Share.share({ url, dialogTitle: 'Share NanoGlyph link' });
+    await Share.share({ url, dialogTitle });
     return true;
   }
   if (navigator.share) {
