@@ -640,22 +640,23 @@ adjustmentsToggle.addEventListener('click', () => {
 });
 
 // Individual slider live update
-let adjDebounceTimer = null;
+let adjPreviewFrame = null;
 
-function debouncedPreviewUpdate() {
-    if (adjDebounceTimer) clearTimeout(adjDebounceTimer);
-    adjDebounceTimer = setTimeout(() => {
+function schedulePreviewUpdate() {
+    if (adjPreviewFrame !== null) cancelAnimationFrame(adjPreviewFrame);
+    adjPreviewFrame = requestAnimationFrame(() => {
+        adjPreviewFrame = null;
         if (selectedFileBuffer && wasmInitialized) {
             const effectiveId = currentPaletteId < 0 ? 99 : currentPaletteId;
             renderPalettePreview(effectiveId);
         }
-    }, 100);
+    });
 }
 
 [adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(slider => {
     slider.addEventListener('input', () => {
         syncAdjustmentUI(); // Update UI instantly
-        debouncedPreviewUpdate(); // Delay expensive Wasm computation
+        schedulePreviewUpdate(); // Render on the next frame; the Worker coalesces newer requests.
     });
 });
 
@@ -666,7 +667,7 @@ document.querySelectorAll('.adj-reset').forEach(btn => {
         if (target) {
             target.value = 0;
             syncAdjustmentUI();
-            debouncedPreviewUpdate();
+            schedulePreviewUpdate();
         }
     });
 });
@@ -675,7 +676,7 @@ document.querySelectorAll('.adj-reset').forEach(btn => {
 function resetAllAdjustments() {
     [adjExposure, adjContrast, adjSaturation, adjHue, adjTemperature].forEach(s => s.value = 0);
     syncAdjustmentUI();
-    debouncedPreviewUpdate();
+    schedulePreviewUpdate();
 }
 
 document.getElementById('adj-reset-all').addEventListener('click', resetAllAdjustments);

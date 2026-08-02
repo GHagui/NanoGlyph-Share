@@ -1086,8 +1086,6 @@ select:hover {
     padding: 16px;
     border: 2px solid white;
     background-color: #1d1d1d;
-    background-image: var(--pixel-muted);
-    background-size: 8px 8px;
     color: white;
     font-size: 0.7rem;
     line-height: 1.65;

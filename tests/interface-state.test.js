@@ -11,3 +11,11 @@ test('image adjustments remain expanded in the static and runtime interface', as
   assert.doesNotMatch(app, /adjustmentsToggle\.setAttribute\('aria-expanded', 'false'\)/);
   assert.doesNotMatch(app, /adjustmentsBody\.setAttribute\('aria-hidden', 'true'\)/);
 });
+
+test('adjustment previews use the next animation frame without a fixed delay', async () => {
+  const app = await readFile(new URL('../app.js', import.meta.url), 'utf8');
+
+  assert.match(app, /function schedulePreviewUpdate\(\)/);
+  assert.match(app, /adjPreviewFrame = requestAnimationFrame/);
+  assert.doesNotMatch(app, /adjDebounceTimer|debouncedPreviewUpdate/);
+});
