@@ -267,7 +267,7 @@ input:focus-visible,
 
 .hero-copy h1,
 .decoder-hero h1 {
-    font-size: clamp(3.5rem, 10vw, 8.8rem);
+    font-size: clamp(3.5rem, 10vw, 5rem);
     font-weight: 950;
     line-height: 0.78;
     letter-spacing: -0.105em;
@@ -824,6 +824,7 @@ select:hover {
 .expandable-body.open {
     max-height: 650px;
     padding-top: 22px;
+    padding-bottom: 4px;
     opacity: 1;
 }
 
@@ -1153,7 +1154,7 @@ select:hover {
 
 .decoder-hero h1 {
     margin: 28px 0 38px;
-    font-size: clamp(3rem, 10vw, 7rem);
+    font-size: clamp(3rem, 10vw, 3rem);
 }
 
 #decoded-container {
@@ -1162,10 +1163,8 @@ select:hover {
     min-height: 300px;
     padding: 18px;
     border: var(--line);
-    background-color: var(--ink);
-    background-image: var(--pixel-white);
+    background-color: var(--paper);
     background-position: 0 0;
-    background-size: 12px 12px;
     box-shadow: 10px 10px 0 var(--violet);
     align-items: center;
     justify-content: center;
